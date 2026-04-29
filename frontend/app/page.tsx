@@ -21,7 +21,7 @@ export default function Home() {
 
   return (
     <main style={{ minHeight: "100vh", background: "var(--agent-bg)", padding: "2rem" }}>
-      
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2rem", borderBottom: "0.5px solid #0e2a1a", paddingBottom: "1rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           <div style={{ position: "relative", width: 48, height: 48 }}>
@@ -41,6 +41,7 @@ export default function Home() {
               AGENT<span style={{ color: "#00d4aa" }}>SEC</span>
             </div>
             <div style={{ fontSize: 10, color: "#4a7a5a", letterSpacing: 4 }}>AUTONOMOUS DEVSECOPS</div>
+            <div style={{ fontSize: 9, color: "#2a4a3a", letterSpacing: 3, marginTop: 2 }}>POWERED BY UWEM</div>
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
