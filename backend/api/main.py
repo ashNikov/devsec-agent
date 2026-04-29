@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sys
 import os
@@ -10,7 +11,14 @@ from tools.trivy import scan_filesystem
 from tools.gitleaks import scan_repo_for_secrets as gitleaks_scan
 from tools.gcp import get_gcp_identity
 
-app = FastAPI(title="DevSec Agent API", version="1.0.0")
+app = FastAPI(title="AgentSec API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class ScanRequest(BaseModel):
     target: str
@@ -18,7 +26,7 @@ class ScanRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "DevSec Agent is running", "status": "healthy"}
+    return {"message": "AgentSec is running", "status": "healthy"}
 
 @app.get("/identity")
 def identity():
