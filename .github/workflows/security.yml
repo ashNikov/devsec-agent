@@ -20,6 +20,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Notify Slack - Secrets Clean
+        if: success()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          -H 'Content-type: application/json' \
+          --data '{"text":"✅ *AgentSec CI/CD* — Secret scan passed on `${{ github.repository }}` branch `${{ github.ref_name }}`"}'
+
+      - name: Notify Slack - Secrets Found
+        if: failure()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          -H 'Content-type: application/json' \
+          --data '{"text":"🔴 *AgentSec CI/CD* — CRITICAL: Secrets detected in `${{ github.repository }}` branch `${{ github.ref_name }}` — check GitHub Actions immediately!"}'
+
   vulnerability-scan:
     name: Scan for Vulnerabilities
     runs-on: ubuntu-latest
@@ -34,6 +48,20 @@ jobs:
           severity: CRITICAL,HIGH
           format: table
 
+      - name: Notify Slack - Vulnerabilities Clean
+        if: success()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          -H 'Content-type: application/json' \
+          --data '{"text":"✅ *AgentSec CI/CD* — Vulnerability scan passed on `${{ github.repository }}`"}'
+
+      - name: Notify Slack - Vulnerabilities Found
+        if: failure()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          -H 'Content-type: application/json' \
+          --data '{"text":"🟡 *AgentSec CI/CD* — WARNING: HIGH/CRITICAL vulnerabilities found in `${{ github.repository }}` — review Trivy report!"}'
+
   docker-build:
     name: Build Docker Image
     runs-on: ubuntu-latest
@@ -42,3 +70,17 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t devsec-agent:test ./backend
+
+      - name: Notify Slack - Build Success
+        if: success()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          -H 'Content-type: application/json' \
+          --data '{"text":"✅ *AgentSec CI/CD* — Docker build successful on `${{ github.repository }}`"}'
+
+      - name: Notify Slack - Build Failed
+        if: failure()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          -H 'Content-type: application/json' \
+          --data '{"text":"🔴 *AgentSec CI/CD* — Docker build FAILED on `${{ github.repository }}` — fix immediately!"}'
