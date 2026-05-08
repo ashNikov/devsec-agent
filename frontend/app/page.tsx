@@ -6,12 +6,14 @@ const API_BASE = "http://localhost:8000";
 export default function Home() {
   const [repos, setRepos] = useState<any[]>([]);
   const [health, setHealth] = useState<any>(null);
+  const [summary, setSummary] = useState<any>(null);
   const [time, setTime] = useState("");
   const [angle, setAngle] = useState(0);
 
   useEffect(() => {
     fetch(`${API_BASE}/repos`).then(r => r.json()).then(setRepos).catch(() => {});
     fetch(`${API_BASE}/health`).then(r => r.json()).then(setHealth).catch(() => {});
+    fetch(`${API_BASE}/scan/summary`).then(r => r.json()).then(setSummary).catch(() => {});
     const t = setInterval(() => {
       setTime(new Date().toISOString().replace("T", " ").split(".")[0] + " UTC");
       setAngle(a => (a + 1) % 360);
@@ -56,7 +58,7 @@ export default function Home() {
         {[
           { label: "REPOS MONITORED", value: repos.length || "—", color: "#00ff88" },
           { label: "ACTIVE TOOLS", value: health ? Object.keys(health.tools || {}).length : "—", color: "#00d4aa" },
-          { label: "CRITICAL FINDINGS", value: "0", color: "#ff4444" },
+          { label: "CRITICAL FINDINGS", value: summary ? summary.critical_findings : "—", color: "#ff4444" },
           { label: "AGENT STATUS", value: health ? "ONLINE" : "—", color: "#00ff88" },
         ].map((m, i) => (
           <div key={i} className="agent-card" style={{ textAlign: "center" }}>

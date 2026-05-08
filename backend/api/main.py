@@ -55,3 +55,16 @@ def health():
             "gcp": "active"
         }
     }
+
+@app.get("/scan/summary")
+def scan_summary():
+    project_path = os.path.expanduser("~/projects/devsec-agent")
+    trivy_result = scan_filesystem(project_path)
+    gitleaks_result = gitleaks_scan(project_path)
+    critical_count = sum(1 for f in trivy_result.get("findings", []) if f.get("severity") == "CRITICAL")
+    secrets_count = gitleaks_result.get("total_secrets_found", 0)
+    return {
+        "critical_findings": critical_count + secrets_count,
+        "vulnerabilities": trivy_result.get("total", 0),
+        "secrets": secrets_count
+    }
