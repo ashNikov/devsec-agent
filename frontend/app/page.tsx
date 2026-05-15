@@ -12,14 +12,27 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
+  const handleExpired = () => {
+    sessionStorage.removeItem("agentsec_token");
+    setToken(null);
+    setUser(null);
+    setRepos([]);
+    setHealth(null);
+    setSummary(null);
+  };
+
+  const authFetch = (url: string, headers: any) =>
+    fetch(url, { headers }).then(r => {
+      if (r.status === 401) { handleExpired(); throw new Error("expired"); }
+      return r.json();
+    });
+
   useEffect(() => {
-    // B — Extract token from URL and store in sessionStorage
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get("token");
 
     if (urlToken) {
       sessionStorage.setItem("agentsec_token", urlToken);
-      // Clean token from URL immediately — security best practice
       window.history.replaceState({}, document.title, "/");
       setToken(urlToken);
     } else {
@@ -32,15 +45,12 @@ export default function Home() {
   useEffect(() => {
     if (!token) return;
 
-    // Fetch user info from GitHub via backend
-    fetch(`${API_BASE}/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(r => r.json()).then(setUser).catch(() => {});
+    const headers = { Authorization: `Bearer ${token}` };
 
-    // Fetch dashboard data
-    fetch(`${API_BASE}/repos`).then(r => r.json()).then(setRepos).catch(() => {});
+    authFetch(`${API_BASE}/auth/me`, headers).then(setUser).catch(() => {});
+    authFetch(`${API_BASE}/repos`, headers).then(data => setRepos(Array.isArray(data) ? data : [])).catch(() => {});
+    authFetch(`${API_BASE}/scan/summary`, headers).then(setSummary).catch(() => {});
     fetch(`${API_BASE}/health`).then(r => r.json()).then(setHealth).catch(() => {});
-    fetch(`${API_BASE}/scan/summary`).then(r => r.json()).then(setSummary).catch(() => {});
 
     const t = setInterval(() => {
       setTime(new Date().toISOString().replace("T", " ").split(".")[0] + " UTC");
@@ -57,14 +67,12 @@ export default function Home() {
     setSummary(null);
   };
 
-  // C — Route protection — show login if no token
   if (!authChecked) return null;
 
   if (!token) {
     return (
       <main style={{ minHeight: "100vh", background: "#0d1520", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ textAlign: "center", padding: "3rem" }}>
-          {/* A — Login page UI */}
           <div style={{ marginBottom: "2rem" }}>
             <svg width="80" height="80" viewBox="0 0 48 48" style={{ margin: "0 auto 1rem" }}>
               <circle cx="24" cy="24" r="22" fill="none" stroke="#00d4aa" strokeWidth="0.5" strokeDasharray="4 2" />
@@ -86,7 +94,6 @@ export default function Home() {
             <div style={{ fontSize: 11, color: "#2a4a3a", marginBottom: "2rem" }}>
               Connect your GitHub to start scanning repos, detecting secrets, and monitoring vulnerabilities in real time.
             </div>
-
             <a href={`${API_BASE}/auth/login`} style={{ textDecoration: "none" }}>
               <div style={{
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
@@ -100,7 +107,6 @@ export default function Home() {
                 LOGIN WITH GITHUB
               </div>
             </a>
-
             <div style={{ marginTop: "1.5rem", fontSize: 9, color: "#2a4a3a", letterSpacing: 1 }}>
               SECURED WITH GITHUB OAUTH 2.0
             </div>
@@ -110,7 +116,6 @@ export default function Home() {
     );
   }
 
-  // Dashboard — only shown when authenticated
   return (
     <main style={{ minHeight: "100vh", background: "var(--agent-bg)", padding: "2rem" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2rem", borderBottom: "0.5px solid #0e2a1a", paddingBottom: "1rem" }}>

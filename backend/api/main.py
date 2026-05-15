@@ -1,6 +1,9 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from pydantic import BaseModel
 import sys
 import os
@@ -18,14 +21,20 @@ from tools.trivy import scan_filesystem
 from tools.gitleaks import scan_repo_for_secrets as gitleaks_scan
 from tools.gcp import get_gcp_identity
 from agent.core import think, analyze_and_alert
+from auth.jwt_handler import create_access_token, verify_access_token
 
-# OAuth config loaded from GCP Secret Manager via Ansible
+# OAuth config
 GITHUB_CLIENT_ID     = os.getenv("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
 OAUTH_REDIRECT_URI   = os.getenv("OAUTH_REDIRECT_URI", "http://localhost:8000/auth/callback")
 FRONTEND_URL         = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
+# Rate limiter — keyed by IP address
+limiter = Limiter(key_func=get_remote_address, default_limits=["50/minute"])
+
 app = FastAPI(title="AgentSec API", version="2.0.0")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,10 +53,21 @@ class ThinkRequest(BaseModel):
 
 def check_tool(command: list) -> str:
     try:
-        result = subprocess.run(command, capture_output=True, timeout=5)
+        result = subprocess.run(command, capture_output=True, timeout=10)
         return "active" if result.returncode == 0 else "error"
     except Exception:
         return "unavailable"
+
+def get_current_user(request: Request) -> dict:
+    """Dependency — verify JWT on protected endpoints."""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = auth_header.split(" ")[1]
+    payload = verify_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return payload
 
 # ── EXISTING ENDPOINTS ────────────────────────────────────
 @app.get("/")
@@ -59,16 +79,19 @@ def identity():
     return get_gcp_identity()
 
 @app.get("/repos")
-def repos():
+@limiter.limit("50/minute")
+def repos(request: Request, user: dict = Depends(get_current_user)):
     return list_repos()
 
 @app.post("/scan/secrets")
-def scan_secrets(request: ScanRequest):
-    return gitleaks_scan(request.target)
+@limiter.limit("50/minute")
+def scan_secrets(request: Request, body: ScanRequest, user: dict = Depends(get_current_user)):
+    return gitleaks_scan(body.target)
 
 @app.post("/scan/vulnerabilities")
-def scan_vulnerabilities(request: ScanRequest):
-    return scan_filesystem(request.target)
+@limiter.limit("50/minute")
+def scan_vulnerabilities(request: Request, body: ScanRequest, user: dict = Depends(get_current_user)):
+    return scan_filesystem(body.target)
 
 @app.get("/health")
 def health():
@@ -78,12 +101,13 @@ def health():
             "gitleaks": check_tool(["gitleaks", "version"]),
             "trivy":    check_tool(["trivy", "--version"]),
             "github":   check_tool(["gh", "auth", "status"]),
-            "gcp":      check_tool(["gcloud", "auth", "list"])
+            "gcp":      check_tool(["gcloud", "config", "get-value", "account"])
         }
     }
 
 @app.get("/scan/summary")
-def scan_summary():
+@limiter.limit("50/minute")
+def scan_summary(request: Request, user: dict = Depends(get_current_user)):
     project_path = os.path.expanduser("~/projects/devsec-agent")
     trivy_result    = scan_filesystem(project_path)
     gitleaks_result = gitleaks_scan(project_path)
@@ -96,19 +120,20 @@ def scan_summary():
     }
 
 @app.post("/agent/think")
-def agent_think(request: ThinkRequest):
-    result = think(request.message)
+@limiter.limit("50/minute")
+def agent_think(request: Request, body: ThinkRequest, user: dict = Depends(get_current_user)):
+    result = think(body.message)
     return {"response": result}
 
 @app.post("/agent/scan")
-def agent_scan():
+@limiter.limit("50/minute")
+def agent_scan(request: Request, user: dict = Depends(get_current_user)):
     result = analyze_and_alert()
     return {"analysis": result}
 
 # ── GITHUB OAUTH ENDPOINTS ────────────────────────────────
 @app.get("/auth/login")
 def auth_login():
-    """Redirect user to GitHub OAuth login page."""
     if not GITHUB_CLIENT_ID:
         raise HTTPException(status_code=500, detail="GitHub OAuth not configured")
     github_auth_url = (
@@ -121,7 +146,6 @@ def auth_login():
 
 @app.get("/auth/callback")
 async def auth_callback(code: str, request: Request):
-    """GitHub calls this with a code — exchange it for an access token."""
     if not code:
         raise HTTPException(status_code=400, detail="No code provided")
 
@@ -138,42 +162,43 @@ async def auth_callback(code: str, request: Request):
         )
         token_data = response.json()
 
-    access_token = token_data.get("access_token")
-    if not access_token:
+    github_token = token_data.get("access_token")
+    if not github_token:
         raise HTTPException(status_code=400, detail="Failed to get access token")
 
-    # Redirect to frontend with token
-    return RedirectResponse(
-        url=f"{FRONTEND_URL}?token={access_token}&auth=success"
-    )
-
-@app.get("/auth/me")
-async def auth_me(request: Request):
-    """Get the logged in GitHub user's info."""
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    token = auth_header.split(" ")[1]
-
+    # Fetch GitHub user info
     async with httpx.AsyncClient() as client:
-        response = await client.get(
+        user_response = await client.get(
             "https://api.github.com/user",
             headers={
-                "Authorization": f"Bearer {token}",
+                "Authorization": f"Bearer {github_token}",
                 "Accept": "application/vnd.github.v3+json",
             },
         )
-        user_data = response.json()
+        user_data = user_response.json()
 
-    return {
-        "login":      user_data.get("login"),
+    # Mint a short-expiry JWT (30 min) instead of passing raw GitHub token
+    jwt_token = create_access_token(data={
+        "sub":        user_data.get("login"),
         "name":       user_data.get("name"),
         "avatar_url": user_data.get("avatar_url"),
         "email":      user_data.get("email"),
+    })
+
+    return RedirectResponse(
+        url=f"{FRONTEND_URL}?token={jwt_token}&auth=success"
+    )
+
+@app.get("/auth/me")
+async def auth_me(request: Request, user: dict = Depends(get_current_user)):
+    """Return user info from the JWT payload — no GitHub API call needed."""
+    return {
+        "login":      user.get("sub"),
+        "name":       user.get("name"),
+        "avatar_url": user.get("avatar_url"),
+        "email":      user.get("email"),
     }
 
 @app.get("/auth/logout")
 def auth_logout():
-    """Clear the session and redirect to frontend."""
     return RedirectResponse(url=f"{FRONTEND_URL}?auth=logout")
