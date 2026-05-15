@@ -43,3 +43,20 @@ resource "google_project_iam_member" "agentsec_security_reviewer" {
   role    = "roles/iam.securityReviewer"
   member  = "serviceAccount:${google_service_account.agentsec.email}"
 }
+
+# GitHub OAuth secrets in Secret Manager
+resource "google_secret_manager_secret" "github_client_id" {
+  project   = var.project_id
+  secret_id = "github-oauth-client-id"
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret" "github_client_secret" {
+  project   = var.project_id
+  secret_id = "github-oauth-client-secret"
+  replication {
+    auto {}
+  }
+}
