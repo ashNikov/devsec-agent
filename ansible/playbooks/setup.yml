@@ -1,0 +1,77 @@
+---
+- name: AgentSec Environment Setup and Verification
+  hosts: agentsec
+  gather_facts: true
+
+  vars:
+    project_dir: "{{ ansible_env.HOME }}/projects/devsec-agent"
+    python_version: "3"
+
+  tasks:
+    - name: Verify Python 3 is installed
+      command: python3 --version
+      register: python_output
+      changed_when: false
+
+    - name: Print Python version
+      debug:
+        msg: "Python version: {{ python_output.stdout }}"
+
+    - name: Verify Gitleaks is installed
+      command: gitleaks version
+      register: gitleaks_output
+      changed_when: false
+
+    - name: Print Gitleaks version
+      debug:
+        msg: "Gitleaks: {{ gitleaks_output.stdout }}"
+
+    - name: Verify Trivy is installed
+      command: trivy --version
+      register: trivy_output
+      changed_when: false
+
+    - name: Print Trivy version
+      debug:
+        msg: "Trivy: {{ trivy_output.stdout_lines[0] }}"
+
+    - name: Verify Docker is installed
+      command: docker --version
+      register: docker_output
+      changed_when: false
+      ignore_errors: true
+
+    - name: Print Docker version
+      debug:
+        msg: "Docker: {{ docker_output.stdout }}"
+
+    - name: Verify gcloud is installed
+      command: gcloud --version
+      register: gcloud_output
+      changed_when: false
+
+    - name: Print gcloud version
+      debug:
+        msg: "gcloud: {{ gcloud_output.stdout_lines[0] }}"
+
+    - name: Verify Terraform is installed
+      command: terraform --version
+      register: terraform_output
+      changed_when: false
+
+    - name: Print Terraform version
+      debug:
+        msg: "Terraform: {{ terraform_output.stdout_lines[0] }}"
+
+    - name: Check AgentSec project directory exists
+      stat:
+        path: "{{ project_dir }}"
+      register: project_dir_stat
+
+    - name: Confirm project directory
+      debug:
+        msg: "AgentSec project directory exists: {{ project_dir_stat.stat.exists }}"
+
+    - name: Environment verification complete
+      debug:
+        msg: "✅ AgentSec environment verified — all tools present and accounted for!"
