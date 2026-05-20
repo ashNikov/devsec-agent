@@ -28,6 +28,21 @@ export default function Home() {
       return r.json();
     });
 
+  // ── JWT SILENT REFRESH ──────────────────────────────────
+  const scheduleTokenRefresh = (jwt: string) => {
+    try {
+      const payload = JSON.parse(atob(jwt.split(".")[1]));
+      const expiresAt = payload.exp * 1000;
+      const refreshAt = expiresAt - 5 * 60 * 1000; // 5 min before expiry
+      const delay = refreshAt - Date.now();
+      if (delay > 0) {
+        setTimeout(() => {
+          window.location.href = `${API_BASE}/auth/login`;
+        }, delay);
+      }
+    } catch (e) {}
+  };
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get("token");
@@ -36,9 +51,10 @@ export default function Home() {
       sessionStorage.setItem("agentsec_token", urlToken);
       window.history.replaceState({}, document.title, "/");
       setToken(urlToken);
+      scheduleTokenRefresh(urlToken);
     } else {
       const stored = sessionStorage.getItem("agentsec_token");
-      if (stored) setToken(stored);
+      if (stored) { setToken(stored); scheduleTokenRefresh(stored); }
     }
     setAuthChecked(true);
   }, []);
