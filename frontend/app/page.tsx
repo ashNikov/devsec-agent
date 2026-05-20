@@ -7,6 +7,7 @@ export default function Home() {
   const [repos, setRepos] = useState<any[]>([]);
   const [health, setHealth] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
   const [time, setTime] = useState("");
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -49,7 +50,8 @@ export default function Home() {
 
     authFetch(`${API_BASE}/auth/me`, headers).then(setUser).catch(() => {});
     authFetch(`${API_BASE}/repos`, headers).then(data => setRepos(Array.isArray(data) ? data : [])).catch(() => {});
-    authFetch(`${API_BASE}/scan/summary`, headers).then(setSummary).catch(() => {});
+    setSummaryLoading(true);
+    authFetch(`${API_BASE}/scan/summary`, headers).then(data => { setSummary(data); setSummaryLoading(false); }).catch(() => { setSummaryLoading(false); });
     fetch(`${API_BASE}/health`).then(r => r.json()).then(setHealth).catch(() => {});
 
     const t = setInterval(() => {
@@ -166,7 +168,7 @@ export default function Home() {
         {[
           { label: "REPOS MONITORED", value: repos.length || "—", color: "#00ff88" },
           { label: "ACTIVE TOOLS", value: health ? Object.keys(health.tools || {}).length : "—", color: "#00d4aa" },
-          { label: "CRITICAL FINDINGS", value: summary ? summary.critical_findings : "—", color: "#ff4444" },
+          { label: "CRITICAL FINDINGS", value: summaryLoading ? "..." : summary ? summary.critical_findings : "—", color: "#ff4444" },
           { label: "AGENT STATUS", value: health ? "ONLINE" : "—", color: "#00ff88" },
         ].map((m, i) => (
           <div key={i} className="agent-card" style={{ textAlign: "center" }}>

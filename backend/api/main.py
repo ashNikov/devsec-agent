@@ -10,6 +10,8 @@ import os
 import subprocess
 import httpx
 from dotenv import load_dotenv
+import threading
+import time
 
 # Load main env first, then OAuth env
 load_dotenv(os.path.expanduser("~/projects/devsec-agent/backend/.env"))
@@ -58,6 +60,53 @@ def check_tool(command: list) -> str:
     except Exception:
         return "unavailable"
 
+# ── HEALTH CACHE ─────────────────────────────────────────
+_health_cache = {
+    "status": "healthy",
+    "tools": {
+        "gitleaks": "checking",
+        "trivy":    "checking",
+        "github":   "checking",
+        "gcp":      "checking"
+    }
+}
+
+def _refresh_health():
+    while True:
+        _health_cache["tools"] = {
+            "gitleaks": check_tool(["gitleaks", "version"]),
+            "trivy":    check_tool(["trivy", "--version"]),
+            "github":   check_tool(["gh", "auth", "status"]),
+            "gcp":      check_tool(["gcloud", "config", "get-value", "account"]),
+        }
+        time.sleep(60)
+
+_health_thread = threading.Thread(target=_refresh_health, daemon=True)
+_health_thread.start()
+
+# ── SCAN SUMMARY CACHE ────────────────────────────────────
+_summary_cache = {"critical_findings": None, "vulnerabilities": None, "secrets": None}
+
+def _refresh_summary():
+    while True:
+        try:
+            project_path = os.path.expanduser("~/projects/devsec-agent")
+            trivy_result    = scan_filesystem(project_path)
+            gitleaks_result = gitleaks_scan(project_path)
+            critical_count  = sum(1 for f in trivy_result.get("findings", []) if f.get("severity") == "CRITICAL")
+            secrets_count   = gitleaks_result.get("total_secrets_found", 0)
+            _summary_cache.update({
+                "critical_findings": critical_count + secrets_count,
+                "vulnerabilities":   trivy_result.get("total", 0),
+                "secrets":           secrets_count
+            })
+        except Exception as e:
+            pass
+        time.sleep(300)
+
+_summary_thread = threading.Thread(target=_refresh_summary, daemon=True)
+_summary_thread.start()
+
 def get_current_user(request: Request) -> dict:
     """Dependency — verify JWT on protected endpoints."""
     auth_header = request.headers.get("Authorization")
@@ -95,29 +144,12 @@ def scan_vulnerabilities(request: Request, body: ScanRequest, user: dict = Depen
 
 @app.get("/health")
 def health():
-    return {
-        "status": "healthy",
-        "tools": {
-            "gitleaks": check_tool(["gitleaks", "version"]),
-            "trivy":    check_tool(["trivy", "--version"]),
-            "github":   check_tool(["gh", "auth", "status"]),
-            "gcp":      check_tool(["gcloud", "config", "get-value", "account"])
-        }
-    }
+    return _health_cache
 
 @app.get("/scan/summary")
 @limiter.limit("50/minute")
 def scan_summary(request: Request, user: dict = Depends(get_current_user)):
-    project_path = os.path.expanduser("~/projects/devsec-agent")
-    trivy_result    = scan_filesystem(project_path)
-    gitleaks_result = gitleaks_scan(project_path)
-    critical_count  = sum(1 for f in trivy_result.get("findings", []) if f.get("severity") == "CRITICAL")
-    secrets_count   = gitleaks_result.get("total_secrets_found", 0)
-    return {
-        "critical_findings": critical_count + secrets_count,
-        "vulnerabilities":   trivy_result.get("total", 0),
-        "secrets":           secrets_count
-    }
+    return _summary_cache
 
 @app.post("/agent/think")
 @limiter.limit("50/minute")
