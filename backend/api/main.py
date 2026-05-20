@@ -1,10 +1,11 @@
 from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 import sys
 import os
 import subprocess
@@ -38,17 +39,35 @@ app = FastAPI(title="AgentSec API", version="2.0.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
     allow_credentials=True,
 )
 
 class ScanRequest(BaseModel):
     target: str
     scan_type: str
+
+    @validator("target")
+    def target_must_be_safe(cls, v):
+        import re
+        if not v or len(v) > 500:
+            raise ValueError("target path too long or empty")
+        if re.search(r"[;&|`$><]", v):
+            raise ValueError("target contains unsafe characters")
+        return v
+
+    @validator("scan_type")
+    def scan_type_must_be_valid(cls, v):
+        allowed = {"secrets", "vulnerabilities", "filesystem", "docker"}
+        if v not in allowed:
+            raise ValueError(f"scan_type must be one of {allowed}")
+        return v
 
 class ThinkRequest(BaseModel):
     message: str
