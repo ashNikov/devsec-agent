@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.gitleaks import scan_repo_for_secrets as gitleaks_scan
 from tools.trivy import scan_filesystem
-from tools.github_tool import list_repos
+from tools.github_tool import list_repos, scan_repo_for_secrets as github_scan_repo
 from tools.slack import send_alert
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
@@ -27,68 +27,123 @@ Always be specific — name the exact resource, project, or file with the issue.
 """
 
 def run_full_scan(project_path: str = None) -> dict:
-    """Run all scans and return real findings."""
+    """Run all scans across ALL repos and return aggregated findings."""
     if not project_path:
         project_path = os.path.expanduser("~/projects/devsec-agent")
 
     results = {}
 
-    # Run Gitleaks
-    secrets = gitleaks_scan(project_path)
-    results["secrets"] = secrets
+    # ── GET ALL REPOS ─────────────────────────────────────
+    repos = list_repos()
+    results["repos"] = repos
 
-    # Run Trivy
+    # ── MULTI-REPO SECRET SCAN ────────────────────────────
+    # Scan every repo via GitHub API — scales to any number of repos
+    all_secret_findings = []
+    repo_scan_summary = []
+
+    for repo in repos:
+        try:
+            repo_result = github_scan_repo(repo["name"])
+            findings = repo_result.get("findings", [])
+            all_secret_findings.extend(findings)
+            repo_scan_summary.append({
+                "repo": repo["name"],
+                "secrets_found": len(findings),
+                "status": "scanned"
+            })
+        except Exception as e:
+            repo_scan_summary.append({
+                "repo": repo["name"],
+                "secrets_found": 0,
+                "status": f"error: {str(e)[:60]}"
+            })
+
+    results["secrets"] = {
+        "total_secrets_found": len(all_secret_findings),
+        "findings": all_secret_findings,
+        "repos_scanned": len(repos),
+        "repo_summary": repo_scan_summary
+    }
+
+    # ── TRIVY FILESYSTEM SCAN ─────────────────────────────
+    # Scans local devsec-agent repo for vulns + Docker image issues
     vulns = scan_filesystem(project_path)
     results["vulnerabilities"] = vulns
 
-    # Get repos
-    repos = list_repos()
-    results["repos"] = repos
+    # ── GITLEAKS DEEP SCAN ────────────────────────────────
+    # Deep local scan on devsec-agent repo
+    gitleaks_result = gitleaks_scan(project_path)
+    results["gitleaks"] = gitleaks_result
 
     return results
 
 def analyze_and_alert(project_path: str = None) -> str:
-    """Brain runs scans, analyzes findings, sends Slack alerts."""
+    """Brain runs scans across all repos, analyzes findings, sends Slack alerts."""
     scan_results = run_full_scan(project_path)
 
     secrets_count = scan_results["secrets"].get("total_secrets_found", 0)
-    vuln_count = scan_results["vulnerabilities"].get("total", 0)
+    vuln_count    = scan_results["vulnerabilities"].get("total", 0)
+    repos_count   = len(scan_results["repos"])
     critical_vulns = [
         f for f in scan_results["vulnerabilities"].get("findings", [])
         if f.get("severity") == "CRITICAL"
     ]
 
-    # Build summary for brain
+    # Build per-repo summary for Slack
+    repo_summary_lines = []
+    for r in scan_results["secrets"].get("repo_summary", []):
+        if r["secrets_found"] > 0:
+            repo_summary_lines.append(f"  ⚠️  {r['repo']}: {r['secrets_found']} secret(s)")
+        else:
+            repo_summary_lines.append(f"  ✅ {r['repo']}: clean")
+    repo_summary_text = "\n".join(repo_summary_lines)
+
+    # Build summary for Claude brain
     summary = f"""
-Scan completed. Here are the raw results:
-- Secrets found: {secrets_count}
+Multi-repo scan completed across {repos_count} repositories.
+
+RESULTS:
+- Total secrets found: {secrets_count}
 - Total vulnerabilities: {vuln_count}
 - Critical vulnerabilities: {len(critical_vulns)}
-- Repos monitored: {len(scan_results["repos"])}
+- Repos scanned: {repos_count}
+
+PER-REPO SECRET SCAN:
+{repo_summary_text}
 
 Critical vulnerability details: {critical_vulns[:5]}
-Secret findings: {scan_results["secrets"].get("findings", [])[:3]}
+Secret findings sample: {scan_results["secrets"].get("findings", [])[:3]}
 
 Analyze these findings and produce a prioritized security report.
+Include which repos need immediate attention.
 """
 
-    # Brain analyzes results
+    # Claude brain analyzes
     analysis = think(summary)
 
-    # Send real Slack alerts based on findings
+    # ── SLACK ALERTS ──────────────────────────────────────
     if secrets_count > 0:
         send_alert(
-            f"🔑 {secrets_count} secret(s) detected in scan — immediate rotation required!\n{analysis[:300]}",
+            f"🔑 *AgentSec Multi-Repo Scan Complete*\n"
+            f"*{secrets_count} secret(s)* detected across {repos_count} repos!\n\n"
+            f"*Per-repo breakdown:*\n{repo_summary_text}\n\n"
+            f"*Analysis:*\n{analysis[:400]}",
             "CRITICAL"
         )
     elif len(critical_vulns) > 0:
         send_alert(
-            f"⚠️ {len(critical_vulns)} CRITICAL vulnerabilities found across {vuln_count} total issues\n{analysis[:300]}",
+            f"⚠️ *AgentSec Multi-Repo Scan Complete*\n"
+            f"*{len(critical_vulns)} CRITICAL* vulns across {repos_count} repos\n"
+            f"{vuln_count} total vulnerabilities\n\n"
+            f"*Analysis:*\n{analysis[:400]}",
             "HIGH"
         )
     else:
         send_alert(
-            f"✅ Scan complete — {vuln_count} vulnerabilities found, no secrets detected\n{analysis[:300]}",
+            f"✅ *AgentSec Multi-Repo Scan Complete*\n"
+            f"{repos_count} repos scanned — {vuln_count} vulns, no secrets\n\n"
+            f"*Analysis:*\n{analysis[:400]}",
             "SUCCESS"
         )
 
@@ -105,6 +160,6 @@ def think(user_message: str, history: list = []) -> str:
     return response.content[0].text
 
 if __name__ == "__main__":
-    print("🔍 AgentSec brain starting full scan...")
+    print("🔍 AgentSec multi-repo scan starting...")
     result = analyze_and_alert()
     print(result)

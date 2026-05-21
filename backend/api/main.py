@@ -334,3 +334,46 @@ async def auth_me(request: Request, user: dict = Depends(get_current_user)):
 @app.get("/auth/logout")
 def auth_logout():
     return RedirectResponse(url=f"{FRONTEND_URL}?auth=logout")
+
+# ── APPROVAL WORKFLOW ENDPOINTS ──────────────────────────
+from tools.approval import (
+    request_approval, approve, reject,
+    get_pending, get_all, is_approved
+)
+
+@app.get("/approvals/pending")
+@limiter.limit("50/minute")
+def approvals_pending(request: Request, user: dict = Depends(get_current_user)):
+    """Get all pending approvals waiting for action."""
+    return get_pending()
+
+@app.get("/approvals/all")
+@limiter.limit("50/minute")
+def approvals_all(request: Request, user: dict = Depends(get_current_user)):
+    """Get recent approval history."""
+    return get_all()
+
+@app.post("/approvals/{approval_id}/approve")
+@limiter.limit("20/minute")
+def approval_approve(approval_id: str, request: Request, user: dict = Depends(get_current_user)):
+    """Approve a pending high-risk action."""
+    result = approve(approval_id, approved_by=user.get("sub", "dashboard"))
+    return result
+
+@app.post("/approvals/{approval_id}/reject")
+@limiter.limit("20/minute")
+def approval_reject(approval_id: str, request: Request, user: dict = Depends(get_current_user)):
+    """Reject a pending high-risk action."""
+    result = reject(approval_id, rejected_by=user.get("sub", "dashboard"))
+    return result
+
+@app.post("/approvals/test")
+@limiter.limit("10/minute")
+def approval_test(request: Request, user: dict = Depends(get_current_user)):
+    """Test the approval workflow — creates a dummy pending approval."""
+    approval_id = request_approval(
+        action="rotate_gcp_secret",
+        description="Rotate JWT_SECRET_KEY in GCP Secret Manager — all active sessions will be invalidated",
+        risk_level="HIGH"
+    )
+    return {"approval_id": approval_id, "message": "Approval request created — check Slack + dashboard"}

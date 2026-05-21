@@ -1,0 +1,79 @@
+---
+- name: Configure WireGuard VPN on AgentSec server
+  hosts: wireguard_server
+  become: yes
+  vars:
+    wg_interface: wg0
+    wg_port: 51820
+    wg_server_ip: 10.0.0.1/24
+    wg_wsl_ip: 10.0.0.2/24
+    server_private_key: "{{ lookup('file', playbook_dir + '/../../wireguard/server_private.key') }}"
+    wsl_public_key: "{{ lookup('file', playbook_dir + '/../../wireguard/wsl_public.key') }}"
+
+  tasks:
+    - name: Install WireGuard
+      apt:
+        name:
+          - wireguard
+          - wireguard-tools
+        state: present
+        update_cache: yes
+
+    - name: Enable IP forwarding
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: "1"
+        state: present
+        reload: yes
+
+    - name: Create WireGuard config directory
+      file:
+        path: /etc/wireguard
+        state: directory
+        mode: "0700"
+        owner: root
+        group: root
+
+    - name: Write WireGuard server config
+      copy:
+        dest: /etc/wireguard/wg0.conf
+        mode: "0600"
+        owner: root
+        group: root
+        content: |
+          [Interface]
+          PrivateKey = {{ server_private_key }}
+          Address = {{ wg_server_ip }}
+          ListenPort = {{ wg_port }}
+          PostUp   = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o ens4 -j MASQUERADE
+          PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o ens4 -j MASQUERADE
+
+          # WSL peer — AgentSec backend
+          [Peer]
+          PublicKey = {{ wsl_public_key }}
+          AllowedIPs = 10.0.0.2/32
+
+    - name: Enable and start WireGuard
+      systemd:
+        name: wg-quick@wg0
+        enabled: yes
+        state: started
+
+    - name: Verify WireGuard is running
+      command: wg show wg0
+      register: wg_status
+      changed_when: false
+
+    - name: Print WireGuard status
+      debug:
+        msg: "{{ wg_status.stdout_lines }}"
+
+    - name: Write setup complete marker
+      copy:
+        dest: /var/log/agentsec-wireguard.log
+        content: |
+          AgentSec WireGuard configured by Ansible
+          Server IP: 10.0.0.1
+          WSL peer:  10.0.0.2
+          Port:      51820
+          Timestamp: {{ ansible_date_time.iso8601 }}

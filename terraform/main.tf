@@ -60,3 +60,86 @@ resource "google_secret_manager_secret" "github_client_secret" {
     auto {}
   }
 }
+
+# ── WIREGUARD LAYER ──────────────────────────────────────
+# Enable Compute API via Terraform
+resource "google_project_service" "compute" {
+  project            = var.project_id
+  service            = "compute.googleapis.com"
+  disable_on_destroy = false
+}
+
+# Static external IP — WireGuard peer endpoint
+resource "google_compute_address" "wireguard_ip" {
+  name    = "agentsec-wireguard-ip"
+  project = var.project_id
+  region  = var.region
+  depends_on = [google_project_service.compute]
+}
+
+# Firewall — allow WireGuard UDP + SSH for setup
+resource "google_compute_firewall" "wireguard" {
+  name    = "agentsec-wireguard-fw"
+  project = var.project_id
+  network = "default"
+
+  allow {
+    protocol = "udp"
+    ports    = ["51820"]
+  }
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["agentsec-wireguard"]
+  depends_on    = [google_project_service.compute]
+}
+
+# e2-micro VM — WireGuard peer node
+resource "google_compute_instance" "wireguard" {
+  name         = "agentsec-wireguard"
+  machine_type = "e2-micro"
+  project      = var.project_id
+  zone         = "${var.region}-a"
+  tags         = ["agentsec-wireguard"]
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-12"
+      size  = 10
+    }
+  }
+
+  network_interface {
+    network = "default"
+    access_config {
+      nat_ip = google_compute_address.wireguard_ip.address
+    }
+  }
+
+  metadata = {
+    enable-oslogin = "TRUE"
+  }
+
+  metadata_startup_script = <<-SCRIPT
+    #!/bin/bash
+    apt-get update -y
+    apt-get install -y wireguard wireguard-tools
+    echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+    sysctl -p
+    echo "WireGuard installed and IP forwarding enabled" > /var/log/wireguard-setup.log
+  SCRIPT
+
+  service_account {
+    email  = google_service_account.agentsec.email
+    scopes = ["cloud-platform"]
+  }
+
+  depends_on = [
+    google_project_service.compute,
+    google_service_account.agentsec
+  ]
+}
