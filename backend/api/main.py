@@ -18,6 +18,24 @@ import time
 load_dotenv(os.path.expanduser("~/projects/devsec-agent/backend/.env"))
 load_dotenv(os.path.expanduser("~/projects/devsec-agent/backend/.oauth_env"))
 
+# Fetch JWT_SECRET_KEY from GCP Secret Manager at startup
+def _get_secret(secret_id: str) -> str:
+    try:
+        result = subprocess.run(
+            ["gcloud", "secrets", "versions", "access", "latest",
+             f"--secret={secret_id}", "--project=agent-sec-496307"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return os.getenv(secret_id, "")
+
+_jwt_secret = _get_secret("JWT_SECRET_KEY")
+if _jwt_secret:
+    os.environ["JWT_SECRET_KEY"] = _jwt_secret
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tools.github_tool import list_repos, scan_repo_for_secrets
 from tools.trivy import scan_filesystem
