@@ -42,6 +42,7 @@ from tools.trivy import scan_filesystem
 from tools.gitleaks import scan_repo_for_secrets as gitleaks_scan
 from tools.gcp import get_gcp_identity
 from agent.core import think, analyze_and_alert
+from agent.scheduler import start_scheduler, stop_scheduler, get_scheduler_status, trigger_manual_scan
 from tools.remediation import (
     fix_risky_iam_bindings,
     analyze_dockerfile,
@@ -61,6 +62,14 @@ FRONTEND_URL         = os.getenv("FRONTEND_URL", "http://localhost:3000")
 limiter = Limiter(key_func=get_remote_address, default_limits=["50/minute"])
 
 app = FastAPI(title="AgentSec API", version="2.0.0")
+
+@app.on_event("startup")
+async def startup_event():
+    start_scheduler()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    stop_scheduler()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -206,6 +215,18 @@ def agent_think(request: Request, body: ThinkRequest, user: dict = Depends(get_c
 def agent_scan(request: Request, user: dict = Depends(get_current_user)):
     result = analyze_and_alert()
     return {"analysis": result}
+
+# ── SCHEDULER ENDPOINTS ──────────────────────────────────
+@app.get("/scheduler/status")
+def scheduler_status(request: Request, user: dict = Depends(get_current_user)):
+    """Get scheduler status and next run time."""
+    return get_scheduler_status()
+
+@app.post("/scheduler/trigger")
+@limiter.limit("5/minute")
+def scheduler_trigger(request: Request, user: dict = Depends(get_current_user)):
+    """Manually trigger an immediate scan."""
+    return trigger_manual_scan()
 
 # ── REMEDIATION ENDPOINTS ────────────────────────────────
 @app.post("/remediate/iam")
