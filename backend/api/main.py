@@ -42,6 +42,13 @@ from tools.trivy import scan_filesystem
 from tools.gitleaks import scan_repo_for_secrets as gitleaks_scan
 from tools.gcp import get_gcp_identity
 from agent.core import think, analyze_and_alert
+from tools.remediation import (
+    fix_risky_iam_bindings,
+    analyze_dockerfile,
+    generate_remediation_report,
+    rotate_gcp_secret,
+    create_dependency_patch_pr
+)
 from auth.jwt_handler import create_access_token, verify_access_token
 
 # OAuth config
@@ -199,6 +206,41 @@ def agent_think(request: Request, body: ThinkRequest, user: dict = Depends(get_c
 def agent_scan(request: Request, user: dict = Depends(get_current_user)):
     result = analyze_and_alert()
     return {"analysis": result}
+
+# ── REMEDIATION ENDPOINTS ────────────────────────────────
+@app.post("/remediate/iam")
+@limiter.limit("10/minute")
+def remediate_iam(request: Request, user: dict = Depends(get_current_user)):
+    """Auto-fix risky IAM bindings on GCP."""
+    result = fix_risky_iam_bindings()
+    return result
+
+@app.post("/remediate/dockerfile")
+@limiter.limit("10/minute")
+def remediate_dockerfile(request: Request, user: dict = Depends(get_current_user)):
+    """Analyze Dockerfile for security issues."""
+    dockerfile_path = os.path.expanduser("~/projects/devsec-agent/Dockerfile")
+    result = analyze_dockerfile(dockerfile_path)
+    return result
+
+@app.post("/remediate/rotate-secret")
+@limiter.limit("5/minute")
+def remediate_rotate_secret(request: Request, user: dict = Depends(get_current_user)):
+    """Rotate JWT_SECRET_KEY in GCP Secret Manager."""
+    import secrets
+    new_value = secrets.token_hex(32)
+    result = rotate_gcp_secret("JWT_SECRET_KEY", new_value)
+    return result
+
+@app.get("/remediate/report")
+@limiter.limit("10/minute")
+def remediate_report(request: Request, user: dict = Depends(get_current_user)):
+    """Get available remediation actions."""
+    return generate_remediation_report([
+        {"action": "IAM scan", "status": "available", "endpoint": "/remediate/iam"},
+        {"action": "Dockerfile hardening", "status": "available", "endpoint": "/remediate/dockerfile"},
+        {"action": "Secret rotation", "status": "available", "endpoint": "/remediate/rotate-secret"},
+    ])
 
 # ── GITHUB OAUTH ENDPOINTS ────────────────────────────────
 @app.get("/auth/login")
