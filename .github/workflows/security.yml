@@ -6,81 +6,159 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   secret-scan:
-    name: Scan for Secrets
+    name: 🔑 Secret Scan — Full Git History
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Run Gitleaks
+      - name: Gitleaks — Full History Scan
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Notify Slack - Secrets Clean
+      - name: Slack — Secrets Clean
         if: success()
         run: |
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
           -H 'Content-type: application/json' \
           --data '{"text":"✅ *AgentSec CI/CD* — Secret scan passed on `${{ github.repository }}` branch `${{ github.ref_name }}`"}'
 
-      - name: Notify Slack - Secrets Found
+      - name: Slack — Secrets Found
         if: failure()
         run: |
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
           -H 'Content-type: application/json' \
-          --data '{"text":"🔴 *AgentSec CI/CD* — CRITICAL: Secrets detected in `${{ github.repository }}` branch `${{ github.ref_name }}` — check GitHub Actions immediately!"}'
+          --data '{"text":"🔴 *AgentSec CI/CD* — CRITICAL: Secrets detected in `${{ github.repository }}` branch `${{ github.ref_name }}` — check GitHub Security tab immediately!"}'
 
-  vulnerability-scan:
-    name: Scan for Vulnerabilities
+  dependency-scan:
+    name: 📦 Dependency Scan — pip + npm
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Trivy
+      - name: Trivy — Python deps (requirements.txt)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: backend/requirements.txt
+          severity: CRITICAL,HIGH,MEDIUM
+          format: sarif
+          output: trivy-python-deps.sarif
+          exit-code: '0'
+
+      - name: Trivy — Node deps (package.json)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: frontend/package.json
+          severity: CRITICAL,HIGH,MEDIUM
+          format: sarif
+          output: trivy-node-deps.sarif
+          exit-code: '0'
+
+      - name: Upload Python deps SARIF → GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-python-deps.sarif
+          category: python-dependencies
+
+      - name: Upload Node deps SARIF → GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-node-deps.sarif
+          category: node-dependencies
+
+      - name: Slack — Dep Scan Complete
+        if: always()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          -H 'Content-type: application/json' \
+          --data '{"text":"📦 *AgentSec CI/CD* — Dependency scan complete on `${{ github.repository }}` — check GitHub Security tab for findings"}'
+
+  filesystem-scan:
+    name: 🛡️ Filesystem Scan — PR Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy — Full Filesystem Scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: .
           severity: CRITICAL,HIGH
-          format: table
+          format: sarif
+          output: trivy-fs.sarif
+          exit-code: '1'
 
-      - name: Notify Slack - Vulnerabilities Clean
+      - name: Upload Filesystem SARIF → GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-fs.sarif
+          category: filesystem
+
+      - name: Slack — FS Scan Clean
         if: success()
         run: |
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
           -H 'Content-type: application/json' \
-          --data '{"text":"✅ *AgentSec CI/CD* — Vulnerability scan passed on `${{ github.repository }}`"}'
+          --data '{"text":"✅ *AgentSec CI/CD* — Filesystem scan passed on `${{ github.repository }}`"}'
 
-      - name: Notify Slack - Vulnerabilities Found
+      - name: Slack — FS CRITICAL/HIGH Found
         if: failure()
         run: |
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
           -H 'Content-type: application/json' \
-          --data '{"text":"🟡 *AgentSec CI/CD* — WARNING: HIGH/CRITICAL vulnerabilities found in `${{ github.repository }}` — review Trivy report!"}'
+          --data '{"text":"🔴 *AgentSec CI/CD* — CRITICAL/HIGH vulnerabilities in `${{ github.repository }}` — merge BLOCKED. Check GitHub Security tab."}'
 
-  docker-build:
-    name: Build Docker Image
+  docker-build-and-scan:
+    name: 🐳 Docker Build + Image Scan
     runs-on: ubuntu-latest
+    needs: [secret-scan, filesystem-scan]
     steps:
       - uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t devsec-agent:test ./backend
+        run: docker build -t devsec-agent:${{ github.sha }} ./backend
 
-      - name: Notify Slack - Build Success
+      - name: Trivy — Scan built Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: image
+          image-ref: devsec-agent:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          format: sarif
+          output: trivy-image.sarif
+          exit-code: '1'
+
+      - name: Upload Image SARIF → GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-image.sarif
+          category: docker-image
+
+      - name: Slack — Build + Image Scan Passed
         if: success()
         run: |
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
           -H 'Content-type: application/json' \
-          --data '{"text":"✅ *AgentSec CI/CD* — Docker build successful on `${{ github.repository }}`"}'
+          --data '{"text":"✅ *AgentSec CI/CD* — Docker build + image scan passed on `${{ github.repository }}`"}'
 
-      - name: Notify Slack - Build Failed
+      - name: Slack — Build or Image Scan Failed
         if: failure()
         run: |
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
           -H 'Content-type: application/json' \
-          --data '{"text":"🔴 *AgentSec CI/CD* — Docker build FAILED on `${{ github.repository }}` — fix immediately!"}'
+          --data '{"text":"🔴 *AgentSec CI/CD* — Docker build or image scan FAILED on `${{ github.repository }}` — merge BLOCKED."}'
