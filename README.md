@@ -171,6 +171,8 @@ sequenceDiagram
 ---
 
 ## Project Structure
+
+```
 devsec-agent/
 ├── backend/
 │   ├── agent/
@@ -210,6 +212,7 @@ devsec-agent/
 │   └── workflows/
 │       └── security.yml      # CI/CD security pipeline
 └── README.md
+```
 
 ---
 
