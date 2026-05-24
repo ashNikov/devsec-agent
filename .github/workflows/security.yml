@@ -165,3 +165,30 @@ jobs:
           curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
           -H 'Content-type: application/json' \
           --data '{"text":"🔴 *AgentSec CI/CD* — Docker build or image scan FAILED on `${{ github.repository }}` — merge BLOCKED."}'
+
+  sonarcloud:
+    name: 🔍 SonarCloud — SAST Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarQube Cloud Scan
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=ashnikov
+            -Dsonar.projectKey=ashNikov_devsec-agent
+            -Dsonar.sources=.
+            -Dsonar.exclusions=**/node_modules/**,**/.next/**,**/venv/**,**/__pycache__/**
+
+      - name: Slack — SonarCloud Complete
+        if: always()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          -H 'Content-type: application/json' \
+          --data '{"text":"🔍 *AgentSec CI/CD* — SonarCloud SAST scan complete on `${{ github.repository }}` — check SonarCloud dashboard for findings"}'
