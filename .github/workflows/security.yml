@@ -94,8 +94,6 @@ jobs:
       - name: Trivy — Full Filesystem Scan
         uses: aquasecurity/trivy-action@master
         with:
-          skip-db-update: false
-          cache: false
           scan-type: fs
           scan-ref: .
           severity: CRITICAL,HIGH
