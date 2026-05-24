@@ -116,6 +116,7 @@ def check_tool(command: list) -> str:
 # ── HEALTH CACHE ─────────────────────────────────────────
 _health_cache = {
     "status": "healthy",
+    "model": "claude-sonnet-4-20250514",
     "tools": {
         "gitleaks": "checking",
         "trivy":    "checking",
@@ -174,7 +175,8 @@ def get_current_user(request: Request) -> dict:
 # ── EXISTING ENDPOINTS ────────────────────────────────────
 @app.get("/")
 def root():
-    return {"message": "AgentSec is running", "status": "healthy", "version": "2.0.0"}
+    return {"message": "AgentSec is running", "status": "healthy",
+    "model": "claude-sonnet-4-20250514", "version": "2.0.0"}
 
 @app.get("/identity")
 def identity():

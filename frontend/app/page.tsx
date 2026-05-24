@@ -497,7 +497,7 @@ export default function Home() {
 
           <div className="pt" style={{marginTop:"1.25rem"}}>Agent</div>
           <div style={{fontSize:".58rem",color:"#3a5a6a",lineHeight:1.8}}>
-            <div>Model: <span style={{color:"#00d4ff"}}>claude-sonnet-4-20250514</span></div>
+            <div>Model: <span style={{color:"#00d4ff"}}>{health?.model || "unknown"}</span></div>
             <div>Project: <span style={{color:"#6a9aaa"}}>agent-sec-496307</span></div>
             <div>Phase: <span style={{color:"#39ff14"}}>2 — 99% complete</span></div>
             <div>Built by: <span style={{color:"#6a9aaa"}}>Uwem — ashNikov</span></div>
