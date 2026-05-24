@@ -82,7 +82,7 @@ export default function Home() {
     fetch(`${API_BASE}/health`).then(r=>r.json()).then(d => {
       setHealth(d);
       const active = Object.values(d.tools||{}).filter((v:any)=>v==="active").length;
-      addLog(`[OK]    ${active}/4 tools active`);
+      addLog(`[OK]    ${active}/${Object.keys(health.tools).length + 1} tools active`);
     }).catch(() => {});
     authFetch(`${API_BASE}/repos`, h).then(d => {
       const arr = Array.isArray(d) ? d : [];
