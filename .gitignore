@@ -17,3 +17,7 @@ node_modules/
 .oauth_env
 wireguard/wsl_private.key
 wireguard/server_private.key
+
+# Security — never scan or commit these
+backend/.env
+frontend/.next/
