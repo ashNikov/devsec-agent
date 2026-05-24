@@ -152,7 +152,7 @@ Include which repos need immediate attention.
 def think(user_message: str, history: list = []) -> str:
     messages = history + [{"role": "user", "content": user_message}]
     response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model="claude-sonnet-4-20250514",
         max_tokens=1024,
         system=SYSTEM_PROMPT,
         messages=messages
