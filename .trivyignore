@@ -1,3 +1,3 @@
-# Skip local dev artifacts and env files
+# Skip local dev artifacts and env files — never committed to production
 backend/.env
 frontend/.next/
