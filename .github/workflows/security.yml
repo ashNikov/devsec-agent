@@ -101,6 +101,7 @@ jobs:
           output: trivy-fs.sarif
           exit-code: '1'
           trivyignores: .trivyignore
+          skip-dirs: frontend/node_modules,frontend/.next
           scanners: vuln
 
       - name: Upload Filesystem SARIF → GitHub Security
