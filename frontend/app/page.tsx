@@ -2,10 +2,10 @@
 import { useEffect, useState, useRef } from "react";
 
 const API_BASE = "http://localhost:8000";
-const TOOLS = ["gitleaks","trivy","github","gcp"];
+const TOOLS = ["gitleaks","trivy","github","gcp","sonarcloud"];
 const TOOL_DESC: Record<string,string> = {
   gitleaks:"Secret Detection", trivy:"Vuln Scanner",
-  github:"Repo Monitor", gcp:"Cloud IAM"
+  github:"Repo Monitor", gcp:"Cloud IAM", sonarcloud:"SAST Analysis"
 };
 
 export default function Home() {
@@ -224,7 +224,7 @@ export default function Home() {
   const critCount   = summaryLoading ? "..." : summary?.critical_findings ?? "—";
   const vulnCount   = summaryLoading ? "..." : summary?.vulnerabilities   ?? "—";
   const secretCount = summaryLoading ? "..." : summary?.secrets           ?? "—";
-  const toolStatuses = health?.tools || {};
+  const toolStatuses = {...(health?.tools || {}), sonarcloud: health?.sonarcloud?.status || "checking"};
   const rad = radarAngle * Math.PI / 180;
   const sweepX = 100 + 90 * Math.sin(rad);
   const sweepY = 100 - 90 * Math.cos(rad);
@@ -312,7 +312,7 @@ export default function Home() {
           {label:"Vulnerabilities",   value:vulnCount,        color:"#ff6b2b", sub:"from Trivy scan"},
           {label:"Secrets Detected",  value:secretCount,      color:"#ffb800", sub:"from Gitleaks"},
           {label:"Repos Monitored",   value:repos.length||"—",color:"#00d4ff", sub:"all repos scanned"},
-          {label:"Tools Active",      value:`${Object.values(toolStatuses).filter((v:any)=>v==="active").length||"—"}/4`, color:"#39ff14", sub:"all systems"},
+          {label:"Tools Active",      value:`${Object.values(toolStatuses).filter((v:any)=>v==="active").length||"—"}/5`, color:"#39ff14", sub:"all systems"},
         ].map((s,i) => (
           <div key={i} className="pn" style={{textAlign:"center"}}>
             <div style={{fontSize:".58rem",color:"#3a5a6a",letterSpacing:".12em",textTransform:"uppercase",marginBottom:6}}>{s.label}</div>

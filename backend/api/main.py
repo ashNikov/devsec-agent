@@ -42,6 +42,7 @@ from tools.trivy import scan_filesystem
 from tools.gitleaks import scan_repo_for_secrets as gitleaks_scan
 from tools.gcp import get_gcp_identity
 from agent.core import think, analyze_and_alert
+from tools.sonarcloud import get_sonarcloud_status
 from agent.scheduler import start_scheduler, stop_scheduler, get_scheduler_status, trigger_manual_scan
 from tools.remediation import (
     fix_risky_iam_bindings,
@@ -117,6 +118,7 @@ def check_tool(command: list) -> str:
 _health_cache = {
     "status": "healthy",
     "model": "claude-sonnet-4-20250514",
+    "sonarcloud": {},
     "tools": {
         "gitleaks": "checking",
         "trivy":    "checking",
@@ -133,6 +135,7 @@ def _refresh_health():
             "github":   check_tool(["gh", "auth", "status"]),
             "gcp":      check_tool(["gcloud", "config", "get-value", "account"]),
         }
+        _health_cache["sonarcloud"] = get_sonarcloud_status()
         time.sleep(60)
 
 _health_thread = threading.Thread(target=_refresh_health, daemon=True)
@@ -176,7 +179,8 @@ def get_current_user(request: Request) -> dict:
 @app.get("/")
 def root():
     return {"message": "AgentSec is running", "status": "healthy",
-    "model": "claude-sonnet-4-20250514", "version": "2.0.0"}
+    "model": "claude-sonnet-4-20250514",
+    "sonarcloud": {}, "version": "2.0.0"}
 
 @app.get("/identity")
 def identity():
