@@ -152,10 +152,14 @@ def _refresh_summary():
             gitleaks_result = gitleaks_scan(project_path)
             critical_count  = sum(1 for f in trivy_result.get("findings", []) if f.get("severity") == "CRITICAL")
             secrets_count   = gitleaks_result.get("total_secrets_found", 0)
+            sonar = get_sonarcloud_status()
+            sonar_issues = sonar.get("total_issues", 0) if sonar.get("status") == "active" else 0
             _summary_cache.update({
                 "critical_findings": critical_count + secrets_count,
                 "vulnerabilities":   trivy_result.get("total", 0),
-                "secrets":           secrets_count
+                "secrets":           secrets_count,
+                "sonar_issues":      sonar_issues,
+                "sonar_gate":        sonar.get("quality_gate", "UNKNOWN")
             })
         except Exception as e:
             pass

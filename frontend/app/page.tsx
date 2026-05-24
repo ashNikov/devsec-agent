@@ -224,6 +224,8 @@ export default function Home() {
   const critCount   = summaryLoading ? "..." : summary?.critical_findings ?? "—";
   const vulnCount   = summaryLoading ? "..." : summary?.vulnerabilities   ?? "—";
   const secretCount = summaryLoading ? "..." : summary?.secrets           ?? "—";
+  const sonarCount   = summaryLoading ? "..." : summary?.sonar_issues ?? "—";
+  const sonarGate    = summaryLoading ? "..." : summary?.sonar_gate   ?? "—";
   const toolStatuses = {...(health?.tools || {}), sonarcloud: health?.sonarcloud?.status || "checking"};
   const rad = radarAngle * Math.PI / 180;
   const sweepX = 100 + 90 * Math.sin(rad);
@@ -306,13 +308,14 @@ export default function Home() {
       </div>
 
       {/* STATS ROW */}
-      <div className="sep" style={{gridTemplateColumns:"repeat(5,1fr)",marginBottom:1}}>
+      <div className="sep" style={{gridTemplateColumns:"repeat(6,1fr)",marginBottom:1}}>
         {[
           {label:"Critical Findings", value:critCount,        color:"#ff2d55", sub:"immediate action"},
           {label:"Vulnerabilities",   value:vulnCount,        color:"#ff6b2b", sub:"from Trivy scan"},
           {label:"Secrets Detected",  value:secretCount,      color:"#ffb800", sub:"from Gitleaks"},
           {label:"Repos Monitored",   value:repos.length||"—",color:"#00d4ff", sub:"all repos scanned"},
           {label:"Tools Active",      value:`${Object.values(toolStatuses).filter((v:any)=>v==="active").length||"—"}/5`, color:"#39ff14", sub:"all systems"},
+          {label:"SonarCloud Issues",  value:sonarCount,       color:"#a855f7", sub:`gate: ${sonarGate}`},
         ].map((s,i) => (
           <div key={i} className="pn" style={{textAlign:"center"}}>
             <div style={{fontSize:".58rem",color:"#3a5a6a",letterSpacing:".12em",textTransform:"uppercase",marginBottom:6}}>{s.label}</div>
