@@ -302,6 +302,28 @@ def provision_scan(request: Request, user: dict = Depends(get_current_user)):
         "findings": results
     }
 
+# ── PROVISIONER FIX ENDPOINTS ───────────────────────────
+from tools.provisioner import scan_all_repos, add_cicd_pipeline, add_gitignore, enforce_branch_protection
+
+class ProvisionRequest(BaseModel):
+    repo: str
+    action: str
+    branch: str = "main"
+    language: str = "Python"
+
+@app.post("/provision/fix")
+@limiter.limit("10/minute")
+def provision_fix(request: Request, body: ProvisionRequest, user: dict = Depends(get_current_user)):
+    """Execute a provisioning fix on a repo — requires prior approval."""
+    if body.action == "add_cicd":
+        return add_cicd_pipeline(body.repo)
+    elif body.action == "add_gitignore":
+        return add_gitignore(body.repo, body.language)
+    elif body.action == "enforce_branch_protection":
+        return enforce_branch_protection(body.repo, body.branch)
+    else:
+        return {"status": "error", "error": f"Unknown action: {body.action}"}
+
 # ── GITHUB OAUTH ENDPOINTS ────────────────────────────────
 @app.get("/auth/login")
 def auth_login():
