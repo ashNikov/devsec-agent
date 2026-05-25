@@ -226,6 +226,19 @@ def agent_scan(request: Request, user: dict = Depends(get_current_user)):
     result = analyze_and_alert()
     return {"analysis": result}
 
+# ── PROJECT STATUS ENDPOINT ──────────────────────────────
+import json as _json
+
+@app.get("/project/status")
+def project_status():
+    """Return live project state from agentsec.config.json."""
+    try:
+        config_path = os.path.expanduser("~/projects/devsec-agent/agentsec.config.json")
+        with open(config_path) as f:
+            return _json.load(f)
+    except Exception as e:
+        return {"error": str(e)}
+
 # ── SCHEDULER ENDPOINTS ──────────────────────────────────
 @app.get("/scheduler/status")
 def scheduler_status(request: Request, user: dict = Depends(get_current_user)):
