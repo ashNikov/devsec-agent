@@ -18,6 +18,7 @@ export default function Home() {
   const [token,          setToken]          = useState<string|null>(null);
   const [user,           setUser]           = useState<any>(null);
   const [authChecked,    setAuthChecked]    = useState(false);
+  const [project,        setProject]        = useState<any>(null);
   const [scanning,       setScanning]       = useState(false);
   const [scanMsg,        setScanMsg]        = useState("");
   const [radarAngle,     setRadarAngle]     = useState(0);
@@ -79,6 +80,7 @@ export default function Home() {
     const h = { Authorization: `Bearer ${token}` };
     addLog("[INFO]  Loading secrets from GCP Secret Manager...");
     authFetch(`${API_BASE}/auth/me`, h).then(d => { setUser(d); addLog(`[OK]    Authenticated as ${d.login}`); }).catch(() => {});
+    fetch(`${API_BASE}/project/status`).then(r=>r.json()).then(setProject).catch(()=>{});
     fetch(`${API_BASE}/health`).then(r=>r.json()).then(d => {
       setHealth(d);
       const active = Object.values(d.tools||{}).filter((v:any)=>v==="active").length;
@@ -502,7 +504,7 @@ export default function Home() {
           <div style={{fontSize:".58rem",color:"#3a5a6a",lineHeight:1.8}}>
             <div>Model: <span style={{color:"#00d4ff"}}>{health?.model || "unknown"}</span></div>
             <div>Project: <span style={{color:"#6a9aaa"}}>agent-sec-496307</span></div>
-            <div>Phase: <span style={{color:"#39ff14"}}>2 — 99% complete</span></div>
+            <div>Phase: <span style={{color:"#39ff14"}}>{project ? `${project.current_phase} — ${project.current_phase_name} (${project.current_phase_progress}%)` : "loading..."}</span></div>
             <div>Built by: <span style={{color:"#6a9aaa"}}>Uwem — ashNikov</span></div>
           </div>
         </div>
