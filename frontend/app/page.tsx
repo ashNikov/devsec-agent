@@ -19,6 +19,7 @@ export default function Home() {
   const [user,           setUser]           = useState<any>(null);
   const [authChecked,    setAuthChecked]    = useState(false);
   const [project,        setProject]        = useState<any>(null);
+  const [compliance,     setCompliance]     = useState<any[]>([]);
   const [scanning,       setScanning]       = useState(false);
   const [scanMsg,        setScanMsg]        = useState("");
   const [radarAngle,     setRadarAngle]     = useState(0);
@@ -81,6 +82,7 @@ export default function Home() {
     addLog("[INFO]  Loading secrets from GCP Secret Manager...");
     authFetch(`${API_BASE}/auth/me`, h).then(d => { setUser(d); addLog(`[OK]    Authenticated as ${d.login}`); }).catch(() => {});
     fetch(`${API_BASE}/project/status`).then(r=>r.json()).then(setProject).catch(()=>{});
+    fetch(`${API_BASE}/provision/scan`, {headers:h}).then(r=>r.json()).then(d=>setCompliance(d.findings||[])).catch(()=>{});
     fetch(`${API_BASE}/health`).then(r=>r.json()).then(d => {
       setHealth(d);
       const active = Object.values(d.tools||{}).filter((v:any)=>v==="active").length;
@@ -371,23 +373,32 @@ export default function Home() {
             })}
           </div>
 
-          <div className="pt">Threat Radar</div>
-          <div style={{display:"flex",justifyContent:"center",padding:".5rem 0"}}>
-            <svg width="190" height="190" viewBox="0 0 200 200">
-              <circle cx="100" cy="100" r="90" fill="rgba(0,212,255,0.05)" stroke="rgba(0,212,255,0.15)" strokeWidth="1"/>
-              <circle cx="100" cy="100" r="60" fill="none" stroke="rgba(0,212,255,0.08)" strokeWidth=".5"/>
-              <circle cx="100" cy="100" r="30" fill="none" stroke="rgba(0,212,255,0.1)" strokeWidth=".5"/>
-              <line x1="100" y1="10" x2="100" y2="190" stroke="rgba(0,212,255,0.07)" strokeWidth=".5"/>
-              <line x1="10" y1="100" x2="190" y2="100" stroke="rgba(0,212,255,0.07)" strokeWidth=".5"/>
-              <path d={`M100,100 L100,10 A90,90 0 ${largeArc},1 ${sweepX},${sweepY} Z`} fill="rgba(57,255,20,0.07)"/>
-              <line x1="100" y1="100" x2={sweepX} y2={sweepY} stroke="#39ff14" strokeWidth="1.5" opacity=".65"/>
-              {repos.slice(0,6).map((_:any,i:number) => {
-                const a=(i/6)*2*Math.PI; const rv=40+i*8;
-                return <circle key={i} cx={100+rv*Math.sin(a)} cy={100-rv*Math.cos(a)} r="3.5" fill={i===0?"#ff2d55":i<3?"#ffb800":"#39ff14"} opacity=".8"/>;
-              })}
-              <circle cx="100" cy="100" r="4" fill="#00d4ff"/>
-              <text x="100" y="197" textAnchor="middle" fill="rgba(0,212,255,0.25)" fontSize="7">agent-sec-496307</text>
-            </svg>
+          <div className="pt">Repo Compliance</div>
+          <div style={{display:"flex",flexDirection:"column",gap:"5px",marginBottom:".5rem"}}>
+            {compliance.length === 0 ? (
+              <div style={{color:"#2a4a5a",fontSize:".6rem",padding:"1rem 0",textAlign:"center"}}>Scanning repos...</div>
+            ) : compliance.map((r:any,i:number) => {
+              const total = 4;
+              const missing = r.missing?.length || 0;
+              const score = missing;
+              const pct = Math.round((score/total)*100);
+              const color = missing === 0 ? "#39ff14" : missing <= 1 ? "#ffb800" : missing <= 2 ? "#ff6b2b" : "#ff2d55";
+              return (
+                <div key={i} style={{background:"rgba(0,212,255,0.03)",border:`1px solid ${color}22`,borderRadius:"4px",padding:"6px 8px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"3px"}}>
+                    <span style={{fontSize:".62rem",fontWeight:600,color:"#c8d8e8"}}>{r.repo}</span>
+                    <span style={{fontSize:".58rem",fontWeight:700,color,background:`${color}15`,padding:"1px 6px",borderRadius:"3px"}}>
+                      {missing === 0 ? "✓ COMPLIANT" : `${missing}/${total} missing`}
+                    </span>
+                  </div>
+                  {missing > 0 && (
+                    <div style={{fontSize:".55rem",color:"#3a6a7a",lineHeight:1.4}}>
+                      {r.missing.join(" · ")}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="pt" style={{marginTop:".75rem"}}>Scheduler</div>
