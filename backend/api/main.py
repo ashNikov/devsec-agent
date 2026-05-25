@@ -286,6 +286,22 @@ def remediate_report(request: Request, user: dict = Depends(get_current_user)):
         {"action": "Secret rotation", "status": "available", "endpoint": "/remediate/rotate-secret"},
     ])
 
+# ── PROVISIONER ENDPOINTS ────────────────────────────────
+from tools.provisioner import scan_all_repos
+
+@app.get("/provision/scan")
+@limiter.limit("5/minute")
+def provision_scan(request: Request, user: dict = Depends(get_current_user)):
+    """Scan all repos and return compliance findings."""
+    results = scan_all_repos()
+    compliant = sum(1 for r in results if r["status"] == "COMPLIANT")
+    return {
+        "total_repos": len(results),
+        "compliant": compliant,
+        "needs_attention": len(results) - compliant,
+        "findings": results
+    }
+
 # ── GITHUB OAUTH ENDPOINTS ────────────────────────────────
 @app.get("/auth/login")
 def auth_login():
