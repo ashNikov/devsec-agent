@@ -5,7 +5,7 @@
   "one_liner": "Automatically detect and remediate exposed secrets and cloud misconfigurations for small engineering teams \u2014 before they become breaches.",
   "current_phase": 3,
   "current_phase_name": "Building Agent + SaaS Foundation",
-  "current_phase_progress": 35,
+  "current_phase_progress": 60,
   "current_step": "Auto-Provisioning",
   "model": "claude-sonnet-4-20250514",
   "gcp_project": "agent-sec-496307",
@@ -51,8 +51,9 @@
     {
       "step": 2,
       "name": "Auto-Provisioning",
-      "status": "IN_PROGRESS",
-      "notes": "Provisioner scanner live \u2014 detects missing CI/CD, gitignore, branch protection, Dockerfile across all repos. Compliance board on dashboard."
+      "status": "COMPLETE",
+      "notes": "Provisioner scanner live \u2014 detects missing CI/CD, gitignore, branch protection, Dockerfile across all repos. Compliance board on dashboard.",
+      "completed": "2026-05-26"
     },
     {
       "step": 3,
@@ -88,5 +89,5 @@
       "decision": "AWS deferred \u2014 account deactivated"
     }
   ],
-  "last_updated": "2026-05-25"
+  "last_updated": "2026-05-26"
 }
