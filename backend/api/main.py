@@ -304,6 +304,7 @@ def provision_scan(request: Request, user: dict = Depends(get_current_user)):
 
 # ── PROVISIONER FIX ENDPOINTS ───────────────────────────
 from tools.provisioner import scan_all_repos, add_cicd_pipeline, add_gitignore, enforce_branch_protection
+from tools.approval import request_approval, approve, reject, get_pending, is_approved
 
 class ProvisionRequest(BaseModel):
     repo: str
@@ -311,18 +312,46 @@ class ProvisionRequest(BaseModel):
     branch: str = "main"
     language: str = "Python"
 
+class ProvisionApproveRequest(BaseModel):
+    approval_id: str
+    repo: str
+    action: str
+    branch: str = "main"
+    language: str = "Python"
+
+ACTION_DESCRIPTIONS = {
+    "add_cicd":                 "Add GitHub Actions security pipeline (Gitleaks + Trivy)",
+    "add_gitignore":            "Create .gitignore file",
+    "enforce_branch_protection":"Enable branch protection on default branch",
+}
+
+@app.post("/provision/request")
+@limiter.limit("10/minute")
+def provision_request(request: Request, body: ProvisionRequest, user: dict = Depends(get_current_user)):
+    """Request approval before executing a provisioning fix."""
+    desc = ACTION_DESCRIPTIONS.get(body.action, body.action)
+    approval_id = request_approval(
+        action=f"provision:{body.action}:{body.repo}",
+        description=f"Repo: `{body.repo}` — {desc}",
+        risk_level="MEDIUM"
+    )
+    return {"approval_id": approval_id, "status": "pending_approval", "repo": body.repo, "action": body.action}
+
 @app.post("/provision/fix")
 @limiter.limit("10/minute")
-def provision_fix(request: Request, body: ProvisionRequest, user: dict = Depends(get_current_user)):
-    """Execute a provisioning fix on a repo — requires prior approval."""
+def provision_fix(request: Request, body: ProvisionApproveRequest, user: dict = Depends(get_current_user)):
+    """Execute provisioning fix — only after approval."""
+    if not is_approved(body.approval_id):
+        return {"status": "error", "error": "Not approved or approval expired"}
     if body.action == "add_cicd":
-        return add_cicd_pipeline(body.repo)
+        result = add_cicd_pipeline(body.repo)
     elif body.action == "add_gitignore":
-        return add_gitignore(body.repo, body.language)
+        result = add_gitignore(body.repo, body.language)
     elif body.action == "enforce_branch_protection":
-        return enforce_branch_protection(body.repo, body.branch)
+        result = enforce_branch_protection(body.repo, body.branch)
     else:
         return {"status": "error", "error": f"Unknown action: {body.action}"}
+    return result
 
 # ── GITHUB OAUTH ENDPOINTS ────────────────────────────────
 @app.get("/auth/login")

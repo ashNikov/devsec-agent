@@ -17,7 +17,10 @@ def check_repo_has_workflow(repo: str) -> bool:
         f"https://api.github.com/repos/{GITHUB_USER}/{repo}/contents/.github/workflows",
         headers=HEADERS, timeout=10
     )
-    return r.status_code == 200
+    if r.status_code == 200:
+        files = r.json()
+        return isinstance(files, list) and len(files) > 0
+    return False
 
 def check_repo_has_gitignore(repo: str) -> bool:
     """Check if repo has a .gitignore at root."""
