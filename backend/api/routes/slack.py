@@ -6,6 +6,8 @@ import json
 import time
 import httpx
 import os
+from dotenv import load_dotenv
+load_dotenv(os.path.expanduser("~/projects/devsec-agent/backend/.env"))
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -153,14 +155,14 @@ async def send_approval_request(request: Request):
                     "type":      "button",
                     "text":      {"type": "plain_text", "text": "✅ Approve"},
                     "style":     "primary",
-                    "action_id": "approval_action",
+                    "action_id": "approve_action",
                     "value":     f"approve:{approval_id}",
                 },
                 {
                     "type":      "button",
                     "text":      {"type": "plain_text", "text": "❌ Reject"},
                     "style":     "danger",
-                    "action_id": "approval_action",
+                    "action_id": "reject_action",
                     "value":     f"reject:{approval_id}",
                 }
             ]
