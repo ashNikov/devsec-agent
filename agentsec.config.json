@@ -1,94 +1,35 @@
 {
-  "product": "AgentSec",
-  "company": "ashNikov Technologies",
-  "built_by": "Uwem",
-  "one_liner": "Automatically detect and remediate exposed secrets and cloud misconfigurations for small engineering teams \u2014 before they become breaches.",
-  "current_phase": 3,
-  "current_phase_name": "Building Agent + SaaS Foundation",
-  "current_phase_progress": 80,
-  "current_step": "Auto-Provisioning",
-  "model": "claude-sonnet-4-20250514",
-  "gcp_project": "agent-sec-496307",
-  "phases": [
-    {
-      "number": 1,
-      "name": "Detection Agent",
-      "status": "COMPLETE",
-      "completed": "2026-05-14",
-      "spend": "$0.00"
-    },
-    {
-      "number": 2,
-      "name": "Remediation Agent",
-      "status": "COMPLETE",
-      "completed": "2026-05-21",
-      "spend": "$0.03"
-    },
-    {
-      "number": 3,
-      "name": "Building Agent + SaaS Foundation",
-      "status": "IN_PROGRESS",
-      "started": "2026-05-22"
-    },
-    {
-      "number": 4,
-      "name": "Full DevSecOps Engineer",
-      "status": "NOT_STARTED"
-    },
-    {
-      "number": 5,
-      "name": "The Company",
-      "status": "NOT_STARTED"
-    }
+  "project": "AgentSec",
+  "version": "3.5",
+  "phase": "Phase 3 — 95% Complete",
+  "last_commit": "d737c45",
+  "updated_at": "2026-05-26",
+  "completed": [
+    "Phase 1 — Core scanning (Gitleaks, Trivy, GitHub, GCP)",
+    "Phase 2 — JWT auth, rate limiting, GitHub OAuth, health caching",
+    "Phase 3 Step 1 — CI/CD hardening",
+    "Phase 3 Step 2 — Auto-provisioning scanner + fix engine",
+    "Phase 3 Step 3 — Repo compliance board",
+    "Phase 3 Step 4 — Multi-agent brain (Haiku + Sonnet + Judge)",
+    "Phase 3 Step 4 — Scan history DB (SQLite)",
+    "Phase 3 Step 5 — SaaS foundation (16-table schema, auth, org routes)",
+    "Phase 3 Step 5 — Paystack account + keys configured"
   ],
-  "phase3_steps": [
-    {
-      "step": 1,
-      "name": "CI/CD Hardening",
-      "status": "COMPLETE",
-      "date": "2026-05-24"
-    },
-    {
-      "step": 2,
-      "name": "Auto-Provisioning",
-      "status": "COMPLETE",
-      "notes": "Provisioner scanner live \u2014 detects missing CI/CD, gitignore, branch protection, Dockerfile across all repos. Compliance board on dashboard.",
-      "completed": "2026-05-26"
-    },
-    {
-      "step": 3,
-      "name": "AWS Integration",
-      "status": "DEFERRED"
-    },
-    {
-      "step": 4,
-      "name": "Multi-Agent Brain",
-      "status": "COMPLETE",
-      "completed": "2026-05-26"
-    },
-    {
-      "step": 5,
-      "name": "SaaS Foundation",
-      "status": "NOT_STARTED"
-    }
+  "remaining": [
+    "Phase 3 Step 5 — Paystack billing endpoints (checkout, webhook, plan upgrade)"
   ],
-  "key_decisions": [
-    {
-      "date": "2026-05-23",
-      "decision": "Commercial focus narrowed to secrets + cloud misconfig for small teams (Pepsy Ntuen feedback)"
-    },
-    {
-      "date": "2026-05-24",
-      "decision": "Brain upgraded Haiku \u2192 Sonnet"
-    },
-    {
-      "date": "2026-05-24",
-      "decision": "SonarCloud added as 5th tool"
-    },
-    {
-      "date": "2026-05-24",
-      "decision": "AWS deferred \u2014 account deactivated"
-    }
-  ],
-  "last_updated": "2026-05-26"
+  "next_session": "PULLUP AGENTSEC PHASE 3 — Paystack Billing (Final Step)",
+  "stack": {
+    "backend": "FastAPI + SQLite + SQLAlchemy + Alembic",
+    "frontend": "Next.js",
+    "auth": "JWT (HS256) + GitHub OAuth + email/password",
+    "billing": "Paystack (Test Mode)",
+    "agent": "Haiku + Sonnet + Python Judge",
+    "infra": "GCP (Terraform + Ansible)"
+  },
+  "commercial_focus": "Automatically detect and remediate exposed secrets + cloud misconfigurations for small engineering teams",
+  "tiers": {
+    "free": "1 repo, scan only, no auto-remediation, 3 members",
+    "pro": "unlimited repos, auto-remediation, scan history, multi-agent brain"
+  }
 }
