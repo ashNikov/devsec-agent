@@ -4,9 +4,9 @@ import os
 
 def scan_repo_for_secrets(repo_path: str) -> dict:
     result = subprocess.run(
-        ["gitleaks", "detect", "--source", repo_path, 
+        ["gitleaks", "detect", "--source", repo_path,
          "--report-format", "json", "--report-path", "/tmp/gitleaks_report.json",
-         "--no-git"],
+         "--gitleaks-ignore-path", os.path.expanduser("~/projects/devsec-agent/.gitleaksignore")],
         capture_output=True,
         text=True
     )
