@@ -490,6 +490,8 @@ def approval_test(request: Request, user: dict = Depends(get_current_user)):
 # ── SAAS ROUTERS ─────────────────────────────────────────
 from api.routes.auth import router as auth_router
 from api.routes.org import router as org_router
+from api.routes.billing import router as billing_router
 
 app.include_router(auth_router)
 app.include_router(org_router)
+app.include_router(billing_router)
