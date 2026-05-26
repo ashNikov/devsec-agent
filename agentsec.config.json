@@ -5,7 +5,7 @@
   "one_liner": "Automatically detect and remediate exposed secrets and cloud misconfigurations for small engineering teams \u2014 before they become breaches.",
   "current_phase": 3,
   "current_phase_name": "Building Agent + SaaS Foundation",
-  "current_phase_progress": 70,
+  "current_phase_progress": 80,
   "current_step": "Auto-Provisioning",
   "model": "claude-sonnet-4-20250514",
   "gcp_project": "agent-sec-496307",
