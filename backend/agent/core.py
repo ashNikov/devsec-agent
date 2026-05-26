@@ -11,6 +11,7 @@ from tools.gitleaks import scan_repo_for_secrets as gitleaks_scan
 from tools.trivy import scan_filesystem
 from tools.github_tool import list_repos, scan_repo_for_secrets as github_scan_repo
 from tools.slack import send_alert
+from agent.multi_brain import multi_brain_analyze
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
@@ -119,8 +120,9 @@ Analyze these findings and produce a prioritized security report.
 Include which repos need immediate attention.
 """
 
-    # Claude brain analyzes
-    analysis = think(summary)
+    # Multi-brain analyzes results
+    verdict = multi_brain_analyze(summary)
+    analysis = verdict["analysis"]
 
     # ── SLACK ALERTS ──────────────────────────────────────
     if secrets_count > 0:

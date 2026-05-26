@@ -1,5 +1,4 @@
 backend/venv/**
-**/.env
-**/.env.*
-**/node_modules/**
-**/*.log
+frontend/node_modules/**
+**/.next/**
+backend/.env
