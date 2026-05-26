@@ -226,6 +226,25 @@ def agent_scan(request: Request, user: dict = Depends(get_current_user)):
     result = analyze_and_alert()
     return {"analysis": result}
 
+# ── SCAN HISTORY ENDPOINTS ───────────────────────────────
+from db.repository import get_scan_history, get_repo_trends
+from db.models import init_db
+
+# Initialize DB on startup
+init_db()
+
+@app.get("/history/scans")
+@limiter.limit("20/minute")
+def scan_history(request: Request, user: dict = Depends(get_current_user), limit: int = 20):
+    """Return recent scan history."""
+    return get_scan_history(limit=limit)
+
+@app.get("/history/trends/{repo}")
+@limiter.limit("20/minute")
+def repo_trends(repo: str, request: Request, user: dict = Depends(get_current_user)):
+    """Return trend data for a specific repo."""
+    return get_repo_trends(repo)
+
 # ── PROJECT STATUS ENDPOINT ──────────────────────────────
 import json as _json
 
@@ -467,3 +486,10 @@ def approval_test(request: Request, user: dict = Depends(get_current_user)):
         risk_level="HIGH"
     )
     return {"approval_id": approval_id, "message": "Approval request created — check Slack + dashboard"}
+
+# ── SAAS ROUTERS ─────────────────────────────────────────
+from api.routes.auth import router as auth_router
+from api.routes.org import router as org_router
+
+app.include_router(auth_router)
+app.include_router(org_router)

@@ -143,3 +143,12 @@ resource "google_compute_instance" "wireguard" {
     google_service_account.agentsec
   ]
 }
+
+# Scan history database secret
+resource "google_secret_manager_secret" "db_url" {
+  project   = var.project_id
+  secret_id = "AGENTSEC_DB_URL"
+  replication {
+    auto {}
+  }
+}
