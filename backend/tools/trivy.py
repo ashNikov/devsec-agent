@@ -34,7 +34,7 @@ def scan_image(image_name: str) -> dict:
 
 def scan_filesystem(path: str) -> dict:
     result = subprocess.run(
-        ["trivy", "fs", "--format", "json", "--quiet", path],
+        ["trivy", "fs", "--format", "json", "--quiet", "--skip-dirs", "venv,node_modules,.next,__pycache__", path],
         capture_output=True,
         text=True
     )

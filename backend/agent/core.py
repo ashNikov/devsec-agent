@@ -12,6 +12,7 @@ from tools.trivy import scan_filesystem
 from tools.github_tool import list_repos, scan_repo_for_secrets as github_scan_repo
 from tools.slack import send_alert
 from agent.multi_brain import multi_brain_analyze
+from db.repository import save_scan_result
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
@@ -148,6 +149,21 @@ Include which repos need immediate attention.
             f"*Analysis:*\n{analysis[:400]}",
             "SUCCESS"
         )
+
+    # Save to scan history database
+    try:
+        save_scan_result(
+            repo="agentsec",
+            secrets=secrets_count,
+            vulns=vuln_count,
+            critical=len(critical_vulns),
+            brain_winner=verdict.get("winner"),
+            brain_score=verdict.get("winner_score"),
+            tokens=verdict.get("total_tokens", 0),
+            analysis=analysis[:1000]
+        )
+    except Exception as e:
+        pass  # Never let DB errors break the scan
 
     return analysis
 

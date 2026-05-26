@@ -1,0 +1,37 @@
+---
+- name: AgentSec — Database Setup
+  hosts: agentsec
+  gather_facts: true
+
+  vars:
+    backend_dir: "{{ ansible_env.HOME }}/projects/devsec-agent/backend"
+    db_path: "{{ ansible_env.HOME }}/projects/devsec-agent/agentsec.db"
+
+  tasks:
+    - name: Install SQLAlchemy and Alembic
+      pip:
+        name:
+          - sqlalchemy==2.0.30
+          - alembic==1.13.1
+        virtualenv: "{{ backend_dir }}/venv"
+        virtualenv_python: python3
+
+    - name: Confirm SQLAlchemy installed
+      command: "{{ backend_dir }}/venv/bin/python -c 'import sqlalchemy; print(sqlalchemy.__version__)'"
+      register: sa_version
+      changed_when: false
+
+    - name: Print SQLAlchemy version
+      debug:
+        msg: "SQLAlchemy: {{ sa_version.stdout }}"
+
+    - name: Set DB URL in .env
+      lineinfile:
+        path: "{{ backend_dir }}/.env"
+        line: "AGENTSEC_DB_URL=sqlite:///{{ db_path }}"
+        regexp: "^AGENTSEC_DB_URL="
+        create: yes
+
+    - name: Database setup complete
+      debug:
+        msg: "✅ AgentSec database dependencies installed — SQLite ready at {{ db_path }}"
