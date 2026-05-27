@@ -79,7 +79,7 @@ ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
     allow_credentials=True,
 )
@@ -554,3 +554,133 @@ _findings_thread.start()
 def get_findings(request: Request, user: dict = Depends(get_current_user)):
     """Return cached live findings from Gitleaks + Trivy."""
     return _findings_cache
+# ── PROFILE UPDATE ───────────────────────────────────────
+from datetime import datetime as _dt
+
+class ProfileUpdateRequest(BaseModel):
+    email: str
+
+@app.patch("/auth/profile")
+@limiter.limit("10/minute")
+def update_profile(request: Request, body: ProfileUpdateRequest, user: dict = Depends(get_current_user)):
+    """Update user profile."""
+    from db.models import User as UserModel, AuditLog as AL, SessionLocal as SL
+    db = SL()
+    try:
+        u = db.query(UserModel).filter(UserModel.email == user.get("sub")).first()
+        if not u:
+            raise HTTPException(status_code=404, detail="User not found")
+        old_email = u.email
+        u.email = body.email
+        db.add(AL(action="user.profile_update", resource="user",
+                  details=f"Email updated from {old_email} to {body.email}",
+                  created_at=_dt.utcnow()))
+        db.commit()
+        return {"status": "updated", "email": body.email}
+    finally:
+        db.close()
+
+
+# ── FINDINGS RESOLVE ─────────────────────────────────────
+from db.models import Finding as FindingModel
+
+@app.patch("/findings/{finding_id}/resolve")
+@limiter.limit("20/minute")
+def resolve_finding(finding_id: int, request: Request, user: dict = Depends(get_current_user)):
+    """Resolve a finding — persists to DB."""
+    from db.models import AuditLog as AL, SessionLocal as SL
+    db = SL()
+    try:
+        finding = db.query(FindingModel).filter(FindingModel.id == finding_id).first()
+        if not finding:
+            finding = FindingModel(
+                type="scan", severity="medium",
+                title=f"Finding #{finding_id}",
+                status="resolved",
+                resolved_at=_dt.utcnow(),
+                created_at=_dt.utcnow(),
+            )
+            db.add(finding)
+        else:
+            finding.status = "resolved"
+            finding.resolved_at = _dt.utcnow()
+        db.add(AL(action="finding.resolve", resource=str(finding_id),
+                  details=f"Finding {finding_id} resolved by {user.get('sub')}",
+                  created_at=_dt.utcnow()))
+        db.commit()
+        return {"status": "resolved", "finding_id": finding_id}
+    finally:
+        db.close()
+
+
+@app.get("/findings/resolved")
+@limiter.limit("20/minute")
+def get_resolved_findings(request: Request, user: dict = Depends(get_current_user)):
+    """Return resolved finding IDs from DB."""
+    from db.models import SessionLocal as SL
+    db = SL()
+    try:
+        resolved = db.query(FindingModel.id).filter(FindingModel.status == "resolved").all()
+        return {"resolved_ids": [r.id for r in resolved]}
+    finally:
+        db.close()
+
+
+# ── PER-REPO SCAN ────────────────────────────────────────
+class RepoScanRequest(BaseModel):
+    repo_name: str
+
+@app.post("/scan/repo")
+@limiter.limit("10/minute")
+def scan_single_repo(request: Request, body: RepoScanRequest, user: dict = Depends(get_current_user)):
+    """Scan a single repo via GitHub API."""
+    result = scan_repo_for_secrets(body.repo_name)
+    from db.repository import save_scan_result
+    save_scan_result(
+        repo=body.repo_name,
+        secrets=result.get("total", 0),
+        vulns=0,
+        critical=result.get("total", 0),
+    )
+    return result
+# ── INTEGRATIONS STATUS ENDPOINT ─────────────────────────
+@app.get("/org/integrations/status")
+@limiter.limit("20/minute")
+def integrations_status(request: Request, user: dict = Depends(get_current_user)):
+    """Return real integration status based on env vars."""
+    def is_set(key: str) -> bool:
+        val = os.getenv(key, "").strip()
+        return bool(val) and val not in ("", "your_key_here", "changeme", "xxx")
+
+    return [
+        {
+            "name": "GitHub",
+            "desc": f"Repository scanning · {'OAuth connected' if is_set('GITHUB_TOKEN') else 'Token missing'}",
+            "status": "connected" if is_set("GITHUB_TOKEN") else "disconnected",
+        },
+        {
+            "name": "GCP",
+            "desc": f"agent-sec-496307 · {'Cloud Run deployed' if is_set('GOOGLE_APPLICATION_CREDENTIALS') or is_set('GCP_PROJECT_ID') else 'Credentials missing'}",
+            "status": "connected" if (is_set("GOOGLE_APPLICATION_CREDENTIALS") or is_set("GCP_PROJECT_ID")) else "disconnected",
+        },
+        {
+            "name": "Supabase",
+            "desc": f"Database · {'Connection string configured' if is_set('SUPABASE_URL') or is_set('DATABASE_URL') else 'Not configured'}",
+            "status": "connected" if (is_set("SUPABASE_URL") or is_set("DATABASE_URL") or is_set("AGENTSEC_DB_URL")) else "disconnected",
+        },
+        {
+            "name": "Paystack",
+            "desc": f"Payments · {'API key configured' if is_set('PAYSTACK_SECRET_KEY') else 'API key pending'}",
+            "status": "connected" if is_set("PAYSTACK_SECRET_KEY") else "pending",
+        },
+        {
+            "name": "Slack",
+            "desc": f"Notifications · {'Webhook active' if is_set('SLACK_WEBHOOK_URL') else 'Not connected'}",
+            "status": "connected" if is_set("SLACK_WEBHOOK_URL") else "disconnected",
+        },
+        {
+            "name": "ngrok",
+            "desc": f"Tunneling · {'Auth token configured' if is_set('NGROK_AUTH_TOKEN') else 'Not configured'}",
+            "status": "connected" if is_set("NGROK_AUTH_TOKEN") else "disconnected",
+        },
+    ]

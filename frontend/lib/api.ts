@@ -36,27 +36,38 @@ export const authApi = {
     request<{ access_token: string }>('/auth/register', {
       method: 'POST', body: JSON.stringify({ org_name, email, password }),
     }),
-  me: () => request<{ sub: string; email: string; name: string; avatar_url: string; login: string; org_id: string; role: string; plan: string }>('/auth/me'),
+  me: () => request<any>('/auth/me'),
+  updateProfile: (email: string) =>
+    request<any>('/auth/profile', {
+      method: 'PATCH', body: JSON.stringify({ email }),
+    }),
 }
 
 export const dashApi = {
-  health: () => request<any>('/health'),
+  health:  () => request<any>('/health'),
   summary: () => request<any>('/scan/summary'),
-  orgMe: () => request<any>('/org/me'),
+  orgMe:   () => request<any>('/org/me'),
   history: () => request<any[]>('/history/scans'),
 }
 
 export const reposApi = {
-  list: () => request<any[]>('/repos'),
+  list:       () => request<any[]>('/repos'),
   triggerScan: () => request<any>('/scheduler/trigger', { method: 'POST' }),
+  scanRepo:   (repo_name: string) =>
+    request<any>('/scan/repo', { method: 'POST', body: JSON.stringify({ repo_name }) }),
+  addRepo:    (repo_name: string, repo_url: string) =>
+    request<any>('/org/repos', { method: 'POST', body: JSON.stringify({ repo_name, repo_url }) }),
 }
 
 export const findingsApi = {
-  list: () => request<any[]>('/findings'),
+  list:     () => request<any[]>('/findings'),
+  resolved: () => request<{ resolved_ids: number[] }>('/findings/resolved'),
+  resolve:  (id: string | number) =>
+    request<any>(`/findings/${id}/resolve`, { method: 'PATCH' }),
 }
 
 export const teamApi = {
-  list: () => request<any[]>('/org/members'),
+  list:   () => request<any[]>('/org/members'),
   invite: (email: string) =>
     request<any>('/org/invite', { method: 'POST', body: JSON.stringify({ email }) }),
 }
@@ -66,12 +77,10 @@ export const settingsApi = {
     request<{ key: string; warning: string }>('/org/api-keys', {
       method: 'POST', body: JSON.stringify({ name }),
     }),
-  updateProfile: (data: { name: string; email: string }) =>
-    request<void>('/auth/me', { method: 'GET' }), // read-only for now
 }
 
 export const billingApi = {
-  status: () => request<any>('/billing/status'),
+  status:     () => request<any>('/billing/status'),
   initialize: () =>
     request<{ checkout_url: string; reference: string }>('/billing/initialize', {
       method: 'POST',

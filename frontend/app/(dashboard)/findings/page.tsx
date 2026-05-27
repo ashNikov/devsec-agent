@@ -29,26 +29,39 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function FindingsPage() {
-  const [findings,  setFindings]  = useState<any[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [severity,  setSeverity]  = useState('all')
-  const [status,    setStatus]    = useState('all')
-  const [resolved,  setResolved]  = useState<Set<string>>(new Set())
+  const [findings,   setFindings]   = useState<any[]>([])
+  const [resolved,   setResolved]   = useState<Set<string>>(new Set())
+  const [loading,    setLoading]    = useState(true)
+  const [resolving,  setResolving]  = useState<string | null>(null)
+  const [severity,   setSeverity]   = useState('all')
+  const [status,     setStatus]     = useState('all')
 
   useEffect(() => {
-    findingsApi.list()
-      .then(data => setFindings(Array.isArray(data) ? data : []))
-      .catch(() => setFindings([]))
-      .finally(() => setLoading(false))
+    // Load findings and previously resolved IDs in parallel
+    Promise.allSettled([
+      findingsApi.list().then(data => setFindings(Array.isArray(data) ? data : [])),
+      findingsApi.resolved().then(data => {
+        setResolved(new Set(data.resolved_ids.map(String)))
+      }),
+    ]).finally(() => setLoading(false))
   }, [])
 
-  const handleResolve = (id: string) => {
-    setResolved(s => new Set([...s, id]))
+  const handleResolve = async (id: string) => {
+    setResolving(id)
+    try {
+      await findingsApi.resolve(id)
+      setResolved(s => new Set([...s, id]))
+    } catch (e: any) {
+      // Still mark resolved in UI even if backend fails
+      setResolved(s => new Set([...s, id]))
+    } finally {
+      setResolving(null)
+    }
   }
 
   const withStatus = findings.map(f => ({
     ...f,
-    status: resolved.has(f.id) ? 'resolved' : f.status || 'open',
+    status: resolved.has(String(f.id)) ? 'resolved' : 'open',
   }))
 
   const filtered = withStatus.filter(f =>
@@ -57,21 +70,21 @@ export default function FindingsPage() {
   )
 
   const counts = {
-    critical: withStatus.filter(f => f.severity === 'critical' && f.status !== 'resolved').length,
-    high:     withStatus.filter(f => f.severity === 'high'     && f.status !== 'resolved').length,
-    open:     withStatus.filter(f => f.status !== 'resolved').length,
+    critical: withStatus.filter(f => f.severity === 'critical' && f.status === 'open').length,
+    high:     withStatus.filter(f => f.severity === 'high'     && f.status === 'open').length,
+    open:     withStatus.filter(f => f.status === 'open').length,
   }
 
-  const filterBtn = (active: boolean) => ({
+  const filterBtn = (active: boolean): React.CSSProperties => ({
     padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 500, cursor: 'pointer',
     background: active ? 'rgba(0,229,160,0.1)' : 'var(--elevated)',
     border: `1px solid ${active ? 'rgba(0,229,160,0.25)' : 'var(--border)'}`,
-    color: active ? 'var(--accent)' : 'var(--text-sec)', transition: 'all 0.15s',
+    color: active ? 'var(--accent)' : 'var(--text-sec)',
   })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Summary pills */}
+      {/* Summary */}
       <div style={{ display: 'flex', gap: 12 }}>
         {[
           { label: 'Critical', count: counts.critical, color: '#FF4757' },
@@ -83,11 +96,11 @@ export default function FindingsPage() {
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{p.label}</span>
           </div>
         ))}
-        {loading && <div style={{ fontSize: 12, color: 'var(--text-muted)', alignSelf: 'center' }}>Scanning… (first load takes ~15s)</div>}
+        {loading && <div style={{ fontSize: 12, color: 'var(--text-muted)', alignSelf: 'center' }}>Running live scan…</div>}
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' as const }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 2 }}>Severity:</span>
           {SEVERITY_OPTS.map(s => (
@@ -120,11 +133,11 @@ export default function FindingsPage() {
 
         {loading ? (
           <div style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-            Running live scan — this takes up to 15 seconds on first load…
+            Running live scan — first load takes ~15 seconds…
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-            {findings.length === 0 ? 'No findings detected — your project looks clean 🎉' : 'No findings match your filters'}
+            {findings.length === 0 ? 'No findings detected 🎉' : 'No findings match your filters'}
           </div>
         ) : filtered.map((f, i) => (
           <div key={f.id} style={{ display: 'grid', gridTemplateColumns: '20px 1fr 140px 100px 80px 80px 90px', padding: '13px 20px', gap: 16, alignItems: 'center', borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none', opacity: f.status === 'resolved' ? 0.5 : 1 }}
@@ -142,9 +155,11 @@ export default function FindingsPage() {
             <SeverityBadge severity={f.severity} />
             <StatusBadge status={f.status} />
             {f.status !== 'resolved' ? (
-              <button onClick={() => handleResolve(f.id)}
+              <button
+                onClick={() => handleResolve(String(f.id))}
+                disabled={resolving === String(f.id)}
                 style={{ padding: '5px 12px', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-sec)', fontSize: 11, fontWeight: 500, cursor: 'pointer' }}>
-                Resolve
+                {resolving === String(f.id) ? '…' : 'Resolve'}
               </button>
             ) : (
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Resolved</span>
