@@ -2,173 +2,130 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { authApi } from '@/lib/api'
 
-const ShieldIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-  </svg>
-)
-
-const navItems = [
-  {
-    href: '/dashboard',
-    label: 'Dashboard',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-      </svg>
-    ),
-  },
-  {
-    href: '/repos',
-    label: 'Repositories',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
-        <path d="M18 9a9 9 0 0 1-9 9"/>
-      </svg>
-    ),
-  },
-  {
-    href: '/findings',
-    label: 'Findings',
-    badge: true,
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      </svg>
-    ),
-  },
-  {
-    href: '/team',
-    label: 'Team',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-      </svg>
-    ),
-  },
-  {
-    href: '/billing',
-    label: 'Billing',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
-      </svg>
-    ),
-  },
-  {
-    href: '/settings',
-    label: 'Settings',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
-    ),
-  },
+const NAV = [
+  { href: '/dashboard', label: 'Dashboard',    icon: '▦' },
+  { href: '/repos',     label: 'Repositories', icon: '⎇' },
+  { href: '/findings',  label: 'Findings',     icon: '◎' },
+  { href: '/team',      label: 'Team',         icon: '⊙' },
+  { href: '/billing',   label: 'Billing',      icon: '▣' },
+  { href: '/settings',  label: 'Settings',     icon: '⚙' },
 ]
 
-interface SidebarProps {
-  openFindings?: number
-  userName?: string
-  userInitials?: string
-}
-
-export function Sidebar({ openFindings = 0, userName = 'Uwem Udo', userInitials = 'UU' }: SidebarProps) {
+export function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
+  const router   = useRouter()
+  const [user,   setUser]   = useState<any>(null)
+  const [sched,  setSched]  = useState({ pct: 0, label: '—' })
+
+  useEffect(() => {
+    authApi.me().then(setUser).catch(() => {})
+  }, [])
+
+  // Auto-scan countdown — just visual, counts from 48m
+  useEffect(() => {
+    const total = 48 * 60
+    let remaining = total
+    const id = setInterval(() => {
+      remaining = remaining > 0 ? remaining - 1 : total
+      const m = Math.floor(remaining / 60)
+      const pct = ((total - remaining) / total) * 100
+      setSched({ pct, label: `${m}m` })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
 
   const handleLogout = () => {
     localStorage.removeItem('agentsec_token')
     router.push('/login')
   }
 
+  const initials = user?.login
+    ? user.login.slice(0, 2).toUpperCase()
+    : user?.sub
+      ? user.sub.slice(0, 2).toUpperCase()
+      : '??'
+
   return (
-    <aside style={{
-      width: 230, minHeight: '100vh',
-      background: 'var(--surface)',
-      borderRight: '1px solid var(--border)',
-      display: 'flex', flexDirection: 'column',
-      flexShrink: 0,
-    }}>
+    <div style={{ width: 220, background: 'var(--surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', flexShrink: 0, height: '100vh' }}>
       {/* Logo */}
-      <div style={{ padding: '18px 18px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 30, height: 30, background: 'var(--accent)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg)', flexShrink: 0 }}>
-          <ShieldIcon />
-        </div>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--fh)', lineHeight: 1 }}>
-            Agent<span style={{ color: 'var(--accent)' }}>Sec</span>
+      <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 30, height: 30, background: 'var(--accent)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg)', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           </div>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.8px', marginTop: 2 }}>BETA · Phase 3</div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--fh)', lineHeight: 1 }}>
+              Agent<span style={{ color: 'var(--accent)' }}>Sec</span>
+            </div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2, letterSpacing: '0.3px' }}>BETA · Phase 3</div>
+          </div>
         </div>
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: '10px 8px' }}>
-        {navItems.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + '/')
+      <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+        {NAV.map(item => {
+          const active = pathname === item.href
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '8px 11px', borderRadius: 8, marginBottom: 2,
-                textDecoration: 'none',
-                background: active ? 'var(--accent-dim)' : 'transparent',
-                color: active ? 'var(--accent)' : 'var(--text-sec)',
-                border: active ? '1px solid var(--accent-border)' : '1px solid transparent',
-                transition: 'all 0.15s',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                <span style={{ opacity: active ? 1 : 0.65, display: 'flex' }}>{item.icon}</span>
-                <span style={{ fontSize: 13, fontWeight: active ? 600 : 400 }}>{item.label}</span>
+            <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, background: active ? 'rgba(0,229,160,0.1)' : 'transparent', border: `1px solid ${active ? 'rgba(0,229,160,0.2)' : 'transparent'}`, cursor: 'pointer', transition: 'all 0.15s' }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}>
+                <span style={{ fontSize: 14, color: active ? 'var(--accent)' : 'var(--text-muted)', width: 18, textAlign: 'center' }}>{item.icon}</span>
+                <span style={{ fontSize: 13, color: active ? 'var(--accent)' : 'var(--text-sec)', fontWeight: active ? 600 : 400 }}>{item.label}</span>
               </div>
-              {item.badge && openFindings > 0 && (
-                <span style={{ background: 'var(--red)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 8, minWidth: 18, textAlign: 'center' }}>
-                  {openFindings}
-                </span>
-              )}
             </Link>
           )
         })}
+
+        {/* Admin link — owner only */}
+        {user?.role === 'owner' && (
+          <>
+            <div style={{ height: 1, background: 'var(--border)', margin: '8px 0' }} />
+            <Link href="/admin" style={{ textDecoration: 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, background: pathname === '/admin' ? 'rgba(59,130,246,0.1)' : 'transparent', border: `1px solid ${pathname === '/admin' ? 'rgba(59,130,246,0.25)' : 'transparent'}`, cursor: 'pointer', transition: 'all 0.15s' }}
+                onMouseEnter={e => { if (pathname !== '/admin') e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
+                onMouseLeave={e => { if (pathname !== '/admin') e.currentTarget.style.background = 'transparent' }}>
+                <span style={{ fontSize: 14, color: pathname === '/admin' ? '#3B82F6' : 'var(--text-muted)', width: 18, textAlign: 'center' }}>⌘</span>
+                <span style={{ fontSize: 13, color: pathname === '/admin' ? '#3B82F6' : 'var(--text-sec)', fontWeight: pathname === '/admin' ? 600 : 400 }}>Admin</span>
+              </div>
+            </Link>
+          </>
+        )}
       </nav>
 
-      {/* Footer */}
-      <div style={{ padding: '10px 8px', borderTop: '1px solid var(--border)' }}>
-        {/* Next scan timer */}
-        <div style={{ background: 'var(--elevated)', borderRadius: 8, padding: '9px 11px', marginBottom: 8, border: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>Next auto-scan</span>
-            <span style={{ color: 'var(--accent)', fontSize: 11, fontFamily: 'var(--fm)' }}>48m</span>
-          </div>
-          <div style={{ height: 3, background: 'var(--border)', borderRadius: 2 }}>
-            <div style={{ width: '65%', height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
-          </div>
+      {/* Auto-scan countdown */}
+      <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Next auto-scan</span>
+          <span style={{ fontSize: 10, color: 'var(--accent)', fontFamily: 'var(--fm)' }}>{sched.label}</span>
         </div>
-
-        {/* User */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '6px 11px', borderRadius: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-dim)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
-            {userInitials}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Owner</div>
-          </div>
-          <button onClick={handleLogout} title="Sign out" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', opacity: 0.5, display: 'flex', padding: 2 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-          </button>
+        <div style={{ height: 3, background: 'var(--elevated)', borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${sched.pct}%`, background: 'var(--accent)', borderRadius: 2, transition: 'width 1s linear' }} />
         </div>
       </div>
-    </aside>
+
+      {/* User + logout */}
+      <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,229,160,0.15)', border: '1px solid rgba(0,229,160,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}>
+            {initials}
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text)', fontWeight: 600, lineHeight: 1.2, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user?.sub || '…'}
+            </div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{user?.role || 'member'}</div>
+          </div>
+        </div>
+        <button onClick={handleLogout} title="Logout"
+          style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, padding: 4 }}>
+          →
+        </button>
+      </div>
+    </div>
   )
 }

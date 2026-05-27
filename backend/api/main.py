@@ -438,6 +438,9 @@ async def auth_me(request: Request, user: dict = Depends(get_current_user)):
         "name":       user.get("name"),
         "avatar_url": user.get("avatar_url"),
         "email":      user.get("email"),
+        "role":       user.get("role"),
+        "org_id":     user.get("org_id"),
+        "plan":       user.get("plan"),
     }
 
 @app.get("/auth/logout")
