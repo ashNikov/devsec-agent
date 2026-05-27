@@ -497,3 +497,57 @@ app.include_router(auth_router)
 app.include_router(org_router)
 app.include_router(billing_router)
 app.include_router(slack_router)
+# ── FINDINGS CACHE ────────────────────────────────────────
+_findings_cache = []
+
+def _refresh_findings():
+    while True:
+        try:
+            project_path = os.path.expanduser("~/projects/devsec-agent")
+            results = []
+
+            # Gitleaks — secrets (always critical)
+            gl = gitleaks_scan(project_path)
+            for i, f in enumerate(gl.get("findings", [])):
+                results.append({
+                    "id":       f"gitleaks-{i}",
+                    "title":    f.get("Description", "Secret detected"),
+                    "file":     f.get("File", "unknown"),
+                    "line":     f.get("StartLine", 0),
+                    "repo":     "devsec-agent",
+                    "tool":     "Gitleaks",
+                    "severity": "critical",
+                    "status":   "open",
+                })
+
+            # Trivy — vulnerabilities
+            sev_map = {"CRITICAL": "critical", "HIGH": "high",
+                       "MEDIUM": "medium", "LOW": "low"}
+            tv = scan_filesystem(project_path)
+            for i, f in enumerate(tv.get("findings", [])):
+                results.append({
+                    "id":       f"trivy-{i}",
+                    "title":    f.get("title") or f.get("id", "Vulnerability"),
+                    "file":     f.get("package", "dependency"),
+                    "line":     0,
+                    "repo":     "devsec-agent",
+                    "tool":     "Trivy",
+                    "severity": sev_map.get(f.get("severity", ""), "low"),
+                    "status":   "open",
+                })
+
+            _findings_cache.clear()
+            _findings_cache.extend(results)
+        except Exception:
+            pass
+        time.sleep(300)  # refresh every 5 minutes
+
+_findings_thread = threading.Thread(target=_refresh_findings, daemon=True)
+_findings_thread.start()
+
+
+@app.get("/findings")
+@limiter.limit("20/minute")
+def get_findings(request: Request, user: dict = Depends(get_current_user)):
+    """Return cached live findings from Gitleaks + Trivy."""
+    return _findings_cache

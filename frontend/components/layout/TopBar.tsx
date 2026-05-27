@@ -1,6 +1,8 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
+import { authApi } from '@/lib/api'
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Overview',
@@ -11,48 +13,54 @@ const PAGE_TITLES: Record<string, string> = {
   '/billing': 'Billing & Plans',
 }
 
-interface TopBarProps {
-  userInitials?: string
-  onScanAll?: () => void
-  scanning?: boolean
-}
-
-export function TopBar({ userInitials = 'UU', onScanAll, scanning }: TopBarProps) {
+export function TopBar() {
   const pathname = usePathname()
-  const title = PAGE_TITLES[pathname] || 'AgentSec'
+  const title = PAGE_TITLES[pathname] || 'Dashboard'
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    authApi.me().then(setUser).catch(() => {})
+  }, [])
+
+  const initials = user?.login
+    ? user.login.slice(0, 2).toUpperCase()
+    : user?.sub
+      ? user.sub.slice(0, 2).toUpperCase()
+      : 'UU'
+
+  const displayName = user?.name || user?.login || user?.sub || 'Loading…'
+  const displayRole = user?.role || 'member'
 
   return (
-    <header style={{
-      height: 54, flexShrink: 0,
-      borderBottom: '1px solid var(--border)',
-      background: 'var(--surface)',
-      display: 'flex', alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '0 26px',
+    <div style={{
+      height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '0 28px', borderBottom: '1px solid var(--border)',
+      background: 'var(--surface)', flexShrink: 0,
     }}>
-      <h1 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--fh)' }}>
+      <h1 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--fh)', margin: 0 }}>
         {title}
       </h1>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        {/* Project badge */}
-        <div style={{ fontSize: 10, color: 'var(--text-muted)', background: 'var(--elevated)', padding: '3px 9px', borderRadius: 5, border: '1px solid var(--border)', fontFamily: 'var(--fm)', display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block' }} />
-          agent-sec-496307
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* GCP badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: 'rgba(0,229,160,0.06)', border: '1px solid rgba(0,229,160,0.15)', borderRadius: 6 }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 0 6px rgba(0,229,160,0.6)' }} />
+          <span style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--fm)', fontWeight: 500 }}>agent-sec-496307</span>
         </div>
-        {/* Scan all */}
-        {onScanAll && (
-          <button onClick={onScanAll} disabled={scanning} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: scanning ? 'var(--accent-dim)' : 'var(--elevated)', border: `1px solid ${scanning ? 'var(--accent-border)' : 'var(--border)'}`, borderRadius: 6, color: scanning ? 'var(--accent)' : 'var(--text-sec)', fontSize: 11, fontWeight: 500, cursor: scanning ? 'not-allowed' : 'pointer' }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-            {scanning ? 'Scanning…' : 'Scan All'}
-          </button>
-        )}
-        {/* Avatar */}
-        <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent-dim)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: 10, fontWeight: 700 }}>
-          {userInitials}
+        {/* User avatar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {user?.avatar_url ? (
+            <img src={user.avatar_url} alt={displayName} style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid var(--border)' }} />
+          ) : (
+            <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(0,229,160,0.15)', border: '1px solid rgba(0,229,160,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>
+              {initials}
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600, lineHeight: 1.2 }}>{displayName}</span>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{displayRole}</span>
+          </div>
         </div>
       </div>
-    </header>
+    </div>
   )
 }

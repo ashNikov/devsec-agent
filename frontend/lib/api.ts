@@ -27,51 +27,54 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
   return res.json()
 }
 
-// Auth
 export const authApi = {
   login: (email: string, password: string) =>
     request<{ access_token: string }>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
+      method: 'POST', body: JSON.stringify({ email, password }),
     }),
   register: (org_name: string, email: string, password: string) =>
     request<{ access_token: string }>('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ org_name, email, password }),
+      method: 'POST', body: JSON.stringify({ org_name, email, password }),
     }),
-  me: () => request<{ email: string; org_id: string; role: string; plan: string }>('/auth/me'),
+  me: () => request<{ sub: string; email: string; name: string; avatar_url: string; login: string; org_id: string; role: string; plan: string }>('/auth/me'),
 }
 
-// Dashboard
 export const dashApi = {
-  getStats: () => request<any>('/api/dashboard/stats'),
+  health: () => request<any>('/health'),
+  summary: () => request<any>('/scan/summary'),
+  orgMe: () => request<any>('/org/me'),
+  history: () => request<any[]>('/history/scans'),
 }
 
-// Repos
 export const reposApi = {
-  list: () => request<any[]>('/api/repos'),
-  scan: (repoId: number) =>
-    request<any>(`/api/repos/${repoId}/scan`, { method: 'POST' }),
+  list: () => request<any[]>('/repos'),
+  triggerScan: () => request<any>('/scheduler/trigger', { method: 'POST' }),
 }
 
-// Findings
 export const findingsApi = {
-  list: () => request<any[]>('/api/findings'),
-  resolve: (id: number) =>
-    request<any>(`/api/findings/${id}/resolve`, { method: 'PATCH' }),
+  list: () => request<any[]>('/findings'),
 }
 
-// Team
 export const teamApi = {
-  list: () => request<any[]>('/api/team'),
-  invite: (email: string, role: string = 'viewer') =>
-    request<void>('/api/team/invite', { method: 'POST', body: JSON.stringify({ email, role }) }),
+  list: () => request<any[]>('/org/members'),
+  invite: (email: string) =>
+    request<any>('/org/invite', { method: 'POST', body: JSON.stringify({ email }) }),
 }
 
-// Settings
 export const settingsApi = {
-  regenerateApiKey: () =>
-    request<{ api_key: string }>('/api/settings/api-key/regenerate', { method: 'POST' }),
+  createApiKey: (name: string) =>
+    request<{ key: string; warning: string }>('/org/api-keys', {
+      method: 'POST', body: JSON.stringify({ name }),
+    }),
   updateProfile: (data: { name: string; email: string }) =>
-    request<void>('/api/settings/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+    request<void>('/auth/me', { method: 'GET' }), // read-only for now
+}
+
+export const billingApi = {
+  status: () => request<any>('/billing/status'),
+  initialize: () =>
+    request<{ checkout_url: string; reference: string }>('/billing/initialize', {
+      method: 'POST',
+      body: JSON.stringify({ callback_url: `${window.location.origin}/billing/callback` }),
+    }),
 }
