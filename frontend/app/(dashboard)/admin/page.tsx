@@ -33,12 +33,13 @@ const DONE_ITEMS = [
   'Syne + DM Sans fonts via next/font',
   'Delete workspace — confirmation modal + backend',
   'Remove member — DELETE endpoint + confirmation',
+  'GitHub OAuth connect flow — tested and working',
   '"Phase: undefined" bug — fixed by UI rebuild',
+  'JWT 30-day persistent login',
 ]
 
 const PENDING_ITEMS = [
-  'GitHub OAuth connect flow',
-  'parts-unlimited scan error (investigate)',
+  'parts-unlimited scan error (investigate in Phase 4)',
 ]
 
 function timeAgo(dateStr: string) {
