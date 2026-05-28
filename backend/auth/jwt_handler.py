@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import os
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 43200
 
 def _get_secret_key() -> str:
     """Always read from environment — never cache at import time."""
