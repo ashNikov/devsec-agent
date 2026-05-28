@@ -684,3 +684,101 @@ def integrations_status(request: Request, user: dict = Depends(get_current_user)
             "status": "connected" if is_set("NGROK_AUTH_TOKEN") else "disconnected",
         },
     ]
+# ── GITHUB CONNECT (link GitHub to existing account) ─────
+@app.get("/auth/github-connect")
+async def github_connect(request: Request, token: str = None):
+    """Redirect logged-in user to GitHub OAuth — token passed as query param."""
+    if not token:
+        raise HTTPException(status_code=401, detail="Token required")
+    payload = verify_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if not GITHUB_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="GitHub OAuth not configured")
+    import urllib.parse
+    state = payload.get("sub", "")
+    github_auth_url = (
+        f"https://github.com/login/oauth/authorize"
+        f"?client_id={GITHUB_CLIENT_ID}"
+        f"&redirect_uri=http://localhost:8000/auth/github-connect/callback"
+        f"&scope=repo,read:user"
+        f"&state={urllib.parse.quote(state)}"
+    )
+    return RedirectResponse(url=github_auth_url)
+
+
+@app.get("/auth/github-connect/callback")
+async def github_connect_callback(code: str, state: str, request: Request):
+    """Handle GitHub OAuth callback — link GitHub token to existing user."""
+    import urllib.parse
+    user_email = urllib.parse.unquote(state)
+
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://github.com/login/oauth/access_token",
+            data={
+                "client_id":     GITHUB_CLIENT_ID,
+                "client_secret": GITHUB_CLIENT_SECRET,
+                "code":          code,
+                "redirect_uri":  "http://localhost:8000/auth/github-connect/callback",
+            },
+            headers={"Accept": "application/json"},
+        )
+        token_data = response.json()
+
+    github_token = token_data.get("access_token")
+    if not github_token:
+        return RedirectResponse(url=f"{FRONTEND_URL}/settings?github=error")
+
+    async with httpx.AsyncClient() as client:
+        user_response = await client.get(
+            "https://api.github.com/user",
+            headers={"Authorization": f"Bearer {github_token}", "Accept": "application/vnd.github.v3+json"},
+        )
+        github_user = user_response.json()
+
+    from db.models import SessionLocal as _SL, Integration as _Intg, User as _User, OrganizationMember as _OrgMem, AuditLog as _AL
+    db = _SL()
+    try:
+        user_obj = db.query(_User).filter(_User.email == user_email).first()
+        if not user_obj:
+            return RedirectResponse(url=f"{FRONTEND_URL}/settings?github=error")
+
+        user_obj.github_id = str(github_user.get("id", ""))
+        db.flush()
+
+        membership = db.query(_OrgMem).filter(_OrgMem.user_id == user_obj.id).first()
+        org_id = membership.org_id if membership else None
+
+        existing = db.query(_Intg).filter(
+            _Intg.org_id == org_id,
+            _Intg.provider == "github"
+        ).first()
+
+        if existing:
+            existing.access_token_encrypted = github_token
+            existing.is_active = True
+        else:
+            db.add(_Intg(
+                org_id=org_id,
+                provider="github",
+                access_token_encrypted=github_token,
+                is_active=True,
+            ))
+
+        import os as _os
+        _os.environ["GITHUB_TOKEN"] = github_token
+
+        db.add(_AL(
+            org_id=org_id,
+            action="integration.github_connect",
+            resource="github",
+            details=f"GitHub connected: {github_user.get('login')}",
+            created_at=__import__("datetime").datetime.utcnow(),
+        ))
+        db.commit()
+
+        login = github_user.get('login', '')
+        return RedirectResponse(url=f"{FRONTEND_URL}/settings?github=connected&login={login}")
+    finally:
+        db.close()

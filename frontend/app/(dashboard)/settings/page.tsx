@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { authApi, settingsApi, orgApi } from '@/lib/api'
 
 const INTEGRATION_ICONS: Record<string, string> = {
@@ -20,6 +20,8 @@ const statusLabel: Record<string, { label: string; bg: string; text: string; bor
 
 export default function SettingsPage() {
   const router         = useRouter()
+  const searchParams   = useSearchParams()
+  const [githubMsg,    setGithubMsg]    = useState('')
   const [user,         setUser]         = useState<any>(null)
   const [email,        setEmail]        = useState('')
   const [saving,       setSaving]       = useState(false)
@@ -36,6 +38,17 @@ export default function SettingsPage() {
   const [deleting,     setDeleting]     = useState(false)
 
   useEffect(() => {
+    // Handle GitHub connect callback
+    const githubStatus = searchParams.get('github')
+    const githubLogin  = searchParams.get('login')
+    if (githubStatus === 'connected') {
+      setGithubMsg(`✓ GitHub connected as @${githubLogin}`)
+      // Refresh integrations
+      setTimeout(() => window.location.href = '/settings', 2000)
+    } else if (githubStatus === 'error') {
+      setGithubMsg('✗ GitHub connect failed — try again')
+    }
+
     authApi.me().then(u => {
       setUser(u)
       setEmail(u.sub || u.email || '')
@@ -169,11 +182,16 @@ export default function SettingsPage() {
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Integrations</div>
-          {!intgLoading && (
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              {integrations.filter(i => i.status === 'connected').length}/{integrations.length} connected
-            </div>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {githubMsg && (
+              <span style={{ fontSize: 12, color: githubMsg.startsWith('✓') ? 'var(--accent)' : '#FF4757' }}>{githubMsg}</span>
+            )}
+            {!intgLoading && (
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {integrations.filter(i => i.status === 'connected').length}/{integrations.length} connected
+              </div>
+            )}
+          </div>
         </div>
 
         {intgLoading ? (
@@ -200,7 +218,10 @@ export default function SettingsPage() {
                 {intg.status !== 'connected' && (
                   <button
                     onClick={() => {
-                      if (intg.name === 'Paystack') window.open('https://dashboard.paystack.com', '_blank')
+                      if (intg.name === 'GitHub') {
+                        const token = localStorage.getItem('agentsec_token')
+                        window.location.href = `http://localhost:8000/auth/github-connect?token=${token}`
+                      } else if (intg.name === 'Paystack') window.open('https://dashboard.paystack.com', '_blank')
                       else if (intg.name === 'Slack') window.open('https://api.slack.com/apps', '_blank')
                     }}
                     style={{ padding: '6px 14px', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-sec)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
