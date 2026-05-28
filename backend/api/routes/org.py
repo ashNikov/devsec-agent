@@ -255,3 +255,82 @@ def audit_logs(request: Request, user: dict = Depends(get_current_user)):
         ]
     finally:
         db.close()
+
+# ── EMAIL INVITE OVERRIDE ─────────────────────────────────
+# This overrides the invite endpoint above to send real emails
+from fastapi import APIRouter as _AR
+import resend as _resend
+
+@router.post("/invite/send")
+def invite_member_with_email(request: Request, body: InviteRequest, user: dict = Depends(get_current_user)):
+    """Invite a teammate — creates token AND sends real email via Resend."""
+    require_owner(user)
+    db = SessionLocal()
+    try:
+        import os, secrets as _secrets
+        from datetime import timedelta
+
+        org_id = user.get("org_id")
+        org = db.query(Organization).filter(Organization.id == org_id).first()
+
+        if org and org.plan == "free":
+            count = db.query(OrganizationMember).filter(
+                OrganizationMember.org_id == org_id
+            ).count()
+            if count >= 3:
+                raise HTTPException(status_code=403, detail="Free plan limited to 3 members. Upgrade to Pro.")
+
+        token = _secrets.token_urlsafe(32)
+        invite = Invitation(
+            org_id=org_id,
+            email=body.email,
+            token=token,
+            expires_at=datetime.utcnow() + timedelta(days=7),
+            created_at=datetime.utcnow(),
+        )
+        db.add(invite)
+        db.add(AuditLog(
+            org_id=org_id,
+            action="member.invite",
+            resource="invitation",
+            details=f"Invited {body.email}",
+            created_at=datetime.utcnow(),
+        ))
+        db.commit()
+
+        # Send email via Resend
+        _resend.api_key = os.getenv("RESEND_API_KEY", "")
+        invited_by = user.get("sub", "your team")
+        org_name = org.name if org else "AgentSec"
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        accept_url = f"{frontend_url}/accept-invite?token={token}"
+        email_sent = False
+
+        if _resend.api_key:
+            try:
+                _resend.Emails.send({
+                    "from": "AgentSec <onboarding@resend.dev>",
+                    "to": [body.email],
+                    "subject": f"You've been invited to {org_name} on AgentSec",
+                    "html": f"""<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;">
+                        <div style="margin-bottom:24px;"><span style="font-size:22px;font-weight:700;color:#00E5A0;">Agent</span><span style="font-size:22px;font-weight:700;color:#1a1a1a;">Sec</span></div>
+                        <h2 style="font-size:20px;color:#1a1a1a;margin-bottom:8px;">You've been invited</h2>
+                        <p style="color:#555;margin-bottom:24px;"><strong>{invited_by}</strong> has invited you to join <strong>{org_name}</strong> on AgentSec — autonomous DevSecOps security scanning.</p>
+                        <a href="{accept_url}" style="display:inline-block;background:#00E5A0;color:#07090F;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">Accept Invitation</a>
+                        <p style="color:#999;font-size:12px;margin-top:24px;">Or use token: <code style="background:#f5f5f5;padding:2px 6px;border-radius:3px;">{token}</code></p>
+                        <p style="color:#999;font-size:12px;">Expires in 7 days.</p>
+                    </div>"""
+                })
+                email_sent = True
+            except Exception as e:
+                print(f"[EMAIL ERROR] {e}")
+
+        return {
+            "status": "invited",
+            "email": body.email,
+            "token": token,
+            "email_sent": email_sent,
+            "expires_at": str(invite.expires_at),
+        }
+    finally:
+        db.close()

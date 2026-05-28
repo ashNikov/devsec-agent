@@ -16,6 +16,7 @@ export default function TeamPage() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviting,    setInviting]    = useState(false)
   const [inviteToken, setInviteToken] = useState('')
+  const [emailSent,   setEmailSent]   = useState(false)
   const [error,       setError]       = useState('')
   const [copied,      setCopied]      = useState(false)
 
@@ -33,6 +34,7 @@ export default function TeamPage() {
     try {
       const res = await teamApi.invite(inviteEmail)
       setInviteToken(res.token || '')
+      setEmailSent(res.email_sent === true)
       setInviteEmail('')
     } catch (err: any) {
       setError(err.message || 'Failed to send invite')
@@ -109,7 +111,9 @@ export default function TeamPage() {
         {/* Token display */}
         {inviteToken && (
           <div style={{ background: 'rgba(0,229,160,0.05)', border: '1px solid rgba(0,229,160,0.2)', borderRadius: 10, padding: '16px 20px', marginBottom: 20 }}>
-            <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, marginBottom: 10 }}>✓ Invite token generated — share this with the invitee:</div>
+            <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, marginBottom: 10 }}>
+              {emailSent ? '✓ Invite email sent + token generated:' : '✓ Invite token generated — share this with the invitee:'}
+            </div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <div style={{ flex: 1, padding: '8px 12px', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 7, fontFamily: 'var(--fm)', fontSize: 11, color: 'var(--text-sec)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                 {inviteToken}
