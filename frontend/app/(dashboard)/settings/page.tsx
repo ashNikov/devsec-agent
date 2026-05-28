@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { authApi, settingsApi } from '@/lib/api'
+import { useRouter } from 'next/navigation'
+import { authApi, settingsApi, orgApi } from '@/lib/api'
 
 const INTEGRATION_ICONS: Record<string, string> = {
   GitHub: '⬡', GCP: '☁', Supabase: '⬢', ngrok: '⌁', Paystack: '₦', Slack: '◈',
@@ -18,6 +19,7 @@ const statusLabel: Record<string, { label: string; bg: string; text: string; bor
 }
 
 export default function SettingsPage() {
+  const router         = useRouter()
   const [user,         setUser]         = useState<any>(null)
   const [email,        setEmail]        = useState('')
   const [saving,       setSaving]       = useState(false)
@@ -29,6 +31,9 @@ export default function SettingsPage() {
   const [copied,       setCopied]       = useState(false)
   const [integrations, setIntegrations] = useState<any[]>([])
   const [intgLoading,  setIntgLoading]  = useState(true)
+  const [showDelete,   setShowDelete]   = useState(false)
+  const [deleteInput,  setDeleteInput]  = useState('')
+  const [deleting,     setDeleting]     = useState(false)
 
   useEffect(() => {
     authApi.me().then(u => {
@@ -86,6 +91,19 @@ export default function SettingsPage() {
     width: '100%', padding: '9px 12px', background: 'var(--elevated)',
     border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)',
     fontSize: 13, outline: 'none', boxSizing: 'border-box',
+  }
+
+  const handleDelete = async () => {
+    if (deleteInput !== 'DELETE') return
+    setDeleting(true)
+    try {
+      await orgApi.deleteWorkspace()
+      localStorage.removeItem('agentsec_token')
+      router.push('/login')
+    } catch (e: any) {
+      alert(e.message || 'Failed to delete workspace')
+      setDeleting(false)
+    }
   }
 
   return (
@@ -195,6 +213,43 @@ export default function SettingsPage() {
         })}
       </div>
 
+      {/* Delete confirmation modal */}
+      {showDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(7,9,15,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,71,87,0.3)', borderRadius: 14, padding: 32, width: 440 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#FF4757', fontFamily: 'var(--fh)', marginBottom: 8 }}>Delete Workspace</h3>
+            <p style={{ fontSize: 13, color: 'var(--text-sec)', marginBottom: 6 }}>
+              This will permanently delete your workspace, all repositories, findings, team members and billing data.
+            </p>
+            <p style={{ fontSize: 13, color: '#FF4757', fontWeight: 600, marginBottom: 20 }}>This action cannot be undone.</p>
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ display: 'block', color: 'var(--text-sec)', fontSize: 11, fontWeight: 600, letterSpacing: '0.4px', marginBottom: 8 }}>
+                Type <span style={{ color: '#FF4757', fontFamily: 'var(--fm)' }}>DELETE</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteInput}
+                onChange={e => setDeleteInput(e.target.value)}
+                placeholder="DELETE"
+                style={{ width: '100%', padding: '9px 12px', background: 'var(--elevated)', border: `1px solid ${deleteInput === 'DELETE' ? 'rgba(255,71,87,0.5)' : 'var(--border)'}`, borderRadius: 7, color: 'var(--text)', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'var(--fm)' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => { setShowDelete(false); setDeleteInput('') }}
+                style={{ flex: 1, padding: '9px', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-sec)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteInput !== 'DELETE' || deleting}
+                style={{ flex: 1, padding: '9px', background: deleteInput === 'DELETE' ? 'rgba(255,71,87,0.15)' : 'var(--elevated)', border: `1px solid ${deleteInput === 'DELETE' ? 'rgba(255,71,87,0.4)' : 'var(--border)'}`, borderRadius: 8, color: deleteInput === 'DELETE' ? '#FF4757' : 'var(--text-muted)', fontSize: 13, fontWeight: 700, cursor: deleteInput === 'DELETE' ? 'pointer' : 'not-allowed' }}>
+                {deleting ? 'Deleting…' : 'Delete Workspace'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Danger zone */}
       <div style={{ background: 'var(--surface)', border: '1px solid rgba(255,71,87,0.2)', borderRadius: 12, padding: 24 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: '#FF4757', marginBottom: 16 }}>Danger Zone</div>
@@ -203,8 +258,8 @@ export default function SettingsPage() {
             <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>Delete workspace</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Permanently delete all repos, findings, and team data. Cannot be undone.</div>
           </div>
-          <button style={{ padding: '8px 16px', background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.3)', borderRadius: 8, color: '#FF4757', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-            onClick={() => alert('Delete workspace — coming in Phase 4. This will require typing DELETE to confirm.')}>
+          <button onClick={() => setShowDelete(true)}
+            style={{ padding: '8px 16px', background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.3)', borderRadius: 8, color: '#FF4757', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
             Delete Workspace
           </button>
         </div>

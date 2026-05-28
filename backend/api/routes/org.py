@@ -334,3 +334,26 @@ def invite_member_with_email(request: Request, body: InviteRequest, user: dict =
         }
     finally:
         db.close()
+
+@router.delete("/workspace")
+def delete_workspace(request: Request, user: dict = Depends(get_current_user)):
+    """Permanently delete org, all members, repos, findings. Owner only."""
+    require_owner(user)
+    db = SessionLocal()
+    try:
+        org_id = user.get("org_id")
+        if not org_id:
+            raise HTTPException(status_code=404, detail="No org found")
+
+        # Delete in order to respect foreign keys
+        db.query(AuditLog).filter(AuditLog.org_id == org_id).delete()
+        db.query(Invitation).filter(Invitation.org_id == org_id).delete()
+        db.query(OrganizationMember).filter(OrganizationMember.org_id == org_id).delete()
+        db.query(UserRepo).filter(UserRepo.org_id == org_id).delete()
+        db.query(ApiKey).filter(ApiKey.org_id == org_id).delete()
+        db.query(Organization).filter(Organization.id == org_id).delete()
+
+        db.commit()
+        return {"status": "deleted", "org_id": org_id}
+    finally:
+        db.close()

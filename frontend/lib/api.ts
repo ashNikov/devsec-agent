@@ -69,7 +69,7 @@ export const findingsApi = {
 export const teamApi = {
   list:   () => request<any[]>('/org/members'),
   invite: (email: string) =>
-    request<any>('/org/invite/send', { method: 'POST', body: JSON.stringify({ email }) }),
+    request<any>('/org/invite', { method: 'POST', body: JSON.stringify({ email }) }),
 }
 
 export const settingsApi = {
@@ -86,4 +86,9 @@ export const billingApi = {
       method: 'POST',
       body: JSON.stringify({ callback_url: `${window.location.origin}/billing/callback` }),
     }),
+}
+
+export const orgApi = {
+  deleteWorkspace: () =>
+    request<any>('/org/workspace', { method: 'DELETE' }),
 }
