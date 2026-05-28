@@ -27,19 +27,18 @@ const DONE_ITEMS = [
   'Settings profile update — live',
   'Scan Now per repo — GitHub API',
   'Live integrations status endpoint',
-  'Team invite — token generation',
+  'Team invite — real email via Resend',
   'CORS fix + DB migrations',
+  'Collapsible sidebar with hamburger',
+  'Syne + DM Sans fonts via next/font',
+  'Delete workspace — confirmation modal + backend',
+  'Remove member — DELETE endpoint + confirmation',
+  '"Phase: undefined" bug — fixed by UI rebuild',
 ]
 
 const PENDING_ITEMS = [
   'GitHub OAuth connect flow',
-  'Team invite — send actual email (needs Resend)',
-  'Remove member — DELETE /org/members/{id}',
-  'Delete workspace — confirmation modal + backend',
-  'parts-unlimited scan error',
-  'Sidebar collapsible with hamburger',
-  'Fonts (Syne/DM Sans)',
-  '"Phase: undefined" dashboard bug',
+  'parts-unlimited scan error (investigate)',
 ]
 
 function timeAgo(dateStr: string) {
