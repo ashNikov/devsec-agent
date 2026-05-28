@@ -69,7 +69,9 @@ export const findingsApi = {
 export const teamApi = {
   list:   () => request<any[]>('/org/members'),
   invite: (email: string) =>
-    request<any>('/org/invite', { method: 'POST', body: JSON.stringify({ email }) }),
+    request<any>('/org/invite/send', { method: 'POST', body: JSON.stringify({ email }) }),
+  remove: (userId: number) =>
+    request<any>(`/org/members/${userId}`, { method: 'DELETE' }),
 }
 
 export const settingsApi = {

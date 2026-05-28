@@ -20,12 +20,27 @@ export default function TeamPage() {
   const [error,       setError]       = useState('')
   const [copied,      setCopied]      = useState(false)
 
+  const [removing,    setRemoving]    = useState<number | null>(null)
+
   useEffect(() => {
     teamApi.list()
       .then(data => setMembers(Array.isArray(data) ? data : []))
       .catch(() => setMembers([]))
       .finally(() => setLoading(false))
   }, [])
+
+  const handleRemove = async (userId: number) => {
+    if (!confirm('Remove this member from your workspace?')) return
+    setRemoving(userId)
+    try {
+      await teamApi.remove(userId)
+      setMembers(ms => ms.filter(m => m.user_id !== userId))
+    } catch (err: any) {
+      alert(err.message || 'Failed to remove member')
+    } finally {
+      setRemoving(null)
+    }
+  }
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -85,8 +100,11 @@ export default function TeamPage() {
                   {(m.role || 'member').toUpperCase()}
                 </div>
                 {m.role !== 'owner' && (
-                  <button style={{ padding: '5px 12px', background: 'transparent', border: '1px solid rgba(255,71,87,0.2)', borderRadius: 6, color: '#FF4757', fontSize: 11, fontWeight: 500, cursor: 'pointer' }}>
-                    Remove
+                  <button
+                    onClick={() => handleRemove(m.user_id)}
+                    disabled={removing === m.user_id}
+                    style={{ padding: '5px 12px', background: 'transparent', border: '1px solid rgba(255,71,87,0.2)', borderRadius: 6, color: '#FF4757', fontSize: 11, fontWeight: 500, cursor: 'pointer' }}>
+                    {removing === m.user_id ? '…' : 'Remove'}
                   </button>
                 )}
               </div>

@@ -357,3 +357,33 @@ def delete_workspace(request: Request, user: dict = Depends(get_current_user)):
         return {"status": "deleted", "org_id": org_id}
     finally:
         db.close()
+
+@router.delete("/members/{user_id}")
+def remove_member(user_id: int, request: Request, user: dict = Depends(get_current_user)):
+    """Remove a member from the org. Owner only."""
+    require_owner(user)
+    db = SessionLocal()
+    try:
+        org_id = user.get("org_id")
+        # Can't remove yourself
+        current_user = db.query(User).filter(User.email == user.get("sub")).first()
+        if current_user and current_user.id == user_id:
+            raise HTTPException(status_code=400, detail="Cannot remove yourself")
+        member = db.query(OrganizationMember).filter(
+            OrganizationMember.org_id == org_id,
+            OrganizationMember.user_id == user_id
+        ).first()
+        if not member:
+            raise HTTPException(status_code=404, detail="Member not found")
+        db.delete(member)
+        db.add(AuditLog(
+            org_id=org_id,
+            action="member.remove",
+            resource=str(user_id),
+            details=f"Member {user_id} removed by {user.get('sub')}",
+            created_at=datetime.utcnow(),
+        ))
+        db.commit()
+        return {"status": "removed", "user_id": user_id}
+    finally:
+        db.close()
