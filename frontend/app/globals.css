@@ -1,6 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
 
 :root {
+  --fh: var(--font-syne), system-ui, sans-serif;
+  --fb: var(--font-dm-sans), system-ui, sans-serif;
+  --fm: 'JetBrains Mono', 'Fira Code', monospace;
   --bg: #07090F;
   --surface: #0D1117;
   --elevated: #131B27;
