@@ -1,0 +1,10 @@
+venv/
+.env
+.oauth_env
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.db
+*.sqlite
+.git/

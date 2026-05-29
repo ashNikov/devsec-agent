@@ -1,23 +1,35 @@
 # Enable required GCP APIs for AgentSec
 resource "google_project_service" "cloud_run" {
-  project = var.project_id
-  service = "run.googleapis.com"
+  project            = var.project_id
+  service            = "run.googleapis.com"
   disable_on_destroy = false
 }
 
 resource "google_project_service" "secret_manager" {
-  project = var.project_id
-  service = "secretmanager.googleapis.com"
+  project            = var.project_id
+  service            = "secretmanager.googleapis.com"
   disable_on_destroy = false
 }
 
 resource "google_project_service" "iam" {
-  project = var.project_id
-  service = "iam.googleapis.com"
+  project            = var.project_id
+  service            = "iam.googleapis.com"
   disable_on_destroy = false
 }
 
-# AgentSec Service Account — dedicated identity for the application
+resource "google_project_service" "compute" {
+  project            = var.project_id
+  service            = "compute.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "artifact_registry" {
+  project            = var.project_id
+  service            = "artifactregistry.googleapis.com"
+  disable_on_destroy = false
+}
+
+# AgentSec Service Account
 resource "google_service_account" "agentsec" {
   project      = var.project_id
   account_id   = "agentsec-sa"
@@ -25,7 +37,6 @@ resource "google_service_account" "agentsec" {
   description  = "Dedicated identity for AgentSec — least privilege only"
 }
 
-# Grant AgentSec Service Account minimum required permissions
 resource "google_project_iam_member" "agentsec_run_viewer" {
   project = var.project_id
   role    = "roles/run.viewer"
@@ -44,7 +55,7 @@ resource "google_project_iam_member" "agentsec_security_reviewer" {
   member  = "serviceAccount:${google_service_account.agentsec.email}"
 }
 
-# GitHub OAuth secrets in Secret Manager
+# GitHub OAuth secrets
 resource "google_secret_manager_secret" "github_client_id" {
   project   = var.project_id
   secret_id = "github-oauth-client-id"
@@ -61,23 +72,23 @@ resource "google_secret_manager_secret" "github_client_secret" {
   }
 }
 
-# ── WIREGUARD LAYER ──────────────────────────────────────
-# Enable Compute API via Terraform
-resource "google_project_service" "compute" {
-  project            = var.project_id
-  service            = "compute.googleapis.com"
-  disable_on_destroy = false
+resource "google_secret_manager_secret" "db_url" {
+  project   = var.project_id
+  secret_id = "AGENTSEC_DB_URL"
+  replication {
+    auto {}
+  }
 }
 
-# Static external IP — WireGuard peer endpoint
+# WireGuard static IP
 resource "google_compute_address" "wireguard_ip" {
-  name    = "agentsec-wireguard-ip"
-  project = var.project_id
-  region  = var.region
+  name       = "agentsec-wireguard-ip"
+  project    = var.project_id
+  region     = var.region
   depends_on = [google_project_service.compute]
 }
 
-# Firewall — allow WireGuard UDP + SSH for setup
+# WireGuard firewall
 resource "google_compute_firewall" "wireguard" {
   name    = "agentsec-wireguard-fw"
   project = var.project_id
@@ -98,7 +109,7 @@ resource "google_compute_firewall" "wireguard" {
   depends_on    = [google_project_service.compute]
 }
 
-# e2-micro VM — WireGuard peer node
+# WireGuard VM
 resource "google_compute_instance" "wireguard" {
   name         = "agentsec-wireguard"
   machine_type = "e2-micro"
@@ -140,15 +151,79 @@ resource "google_compute_instance" "wireguard" {
 
   depends_on = [
     google_project_service.compute,
-    google_service_account.agentsec
+    google_service_account.agentsec,
   ]
 }
 
-# Scan history database secret
-resource "google_secret_manager_secret" "db_url" {
-  project   = var.project_id
-  secret_id = "AGENTSEC_DB_URL"
-  replication {
-    auto {}
+# Artifact Registry
+resource "google_artifact_registry_repository" "agentsec" {
+  project       = var.project_id
+  location      = var.region
+  repository_id = "agentsec"
+  format        = "DOCKER"
+  description   = "AgentSec Docker images"
+  depends_on    = [google_project_service.artifact_registry]
+}
+
+resource "google_artifact_registry_repository_iam_member" "agentsec_writer" {
+  project    = var.project_id
+  location   = var.region
+  repository = google_artifact_registry_repository.agentsec.name
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:${google_service_account.agentsec.email}"
+}
+
+# Cloud Run staging service
+resource "google_cloud_run_v2_service" "agentsec_staging" {
+  project  = var.project_id
+  name     = "agentsec-staging"
+  location = var.region
+
+  template {
+    service_account = google_service_account.agentsec.email
+
+    containers {
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/agentsec/backend:latest"
+
+      ports {
+        container_port = 8000
+      }
+
+      env {
+        name  = "ENVIRONMENT"
+        value = "staging"
+      }
+
+      env {
+        name  = "ALLOWED_ORIGINS"
+        value = "http://localhost:3000"
+      }
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+    }
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 2
+    }
   }
+
+  depends_on = [
+    google_project_service.cloud_run,
+    google_artifact_registry_repository.agentsec,
+  ]
+}
+
+# Make staging publicly accessible
+resource "google_cloud_run_v2_service_iam_member" "staging_public" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.agentsec_staging.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
