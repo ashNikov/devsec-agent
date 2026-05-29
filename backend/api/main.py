@@ -782,3 +782,79 @@ async def github_connect_callback(code: str, state: str, request: Request):
         return RedirectResponse(url=f"{FRONTEND_URL}/settings?github=connected&login={login}")
     finally:
         db.close()
+
+# ── SESSION LOGGER ENDPOINTS ─────────────────────────────
+from tools.session_logger import start_session, end_session, get_sessions
+
+class SessionStartRequest(BaseModel):
+    repo: str = None
+    scan_type: str = "manual"
+
+class SessionEndRequest(BaseModel):
+    session_id: str
+    status: str = "completed"
+    findings: int = 0
+
+@app.post("/sessions/start")
+@limiter.limit("30/minute")
+def session_start(request: Request, body: SessionStartRequest, user: dict = Depends(get_current_user)):
+    """Start a new scan session."""
+    return start_session(
+        user=user.get("sub", "unknown"),
+        repo=body.repo,
+        scan_type=body.scan_type,
+    )
+
+@app.post("/sessions/end")
+@limiter.limit("30/minute")
+def session_end(request: Request, body: SessionEndRequest, user: dict = Depends(get_current_user)):
+    """Close an active session with result."""
+    return end_session(
+        session_id=body.session_id,
+        status=body.status,
+        findings=body.findings,
+    )
+
+@app.get("/sessions")
+@limiter.limit("30/minute")
+def sessions_list(request: Request, user: dict = Depends(get_current_user), limit: int = 50):
+    """Return recent session history."""
+    return get_sessions(limit=limit)
+
+# ── SESSION LOGGER ENDPOINTS ─────────────────────────────
+from tools.session_logger import start_session, end_session, get_sessions
+
+class SessionStartRequest(BaseModel):
+    repo: str = None
+    scan_type: str = "manual"
+
+class SessionEndRequest(BaseModel):
+    session_id: str
+    status: str = "completed"
+    findings: int = 0
+
+@app.post("/sessions/start")
+@limiter.limit("30/minute")
+def session_start(request: Request, body: SessionStartRequest, user: dict = Depends(get_current_user)):
+    """Start a new scan session."""
+    return start_session(
+        user=user.get("sub", "unknown"),
+        repo=body.repo,
+        scan_type=body.scan_type,
+    )
+
+@app.post("/sessions/end")
+@limiter.limit("30/minute")
+def session_end(request: Request, body: SessionEndRequest, user: dict = Depends(get_current_user)):
+    """Close an active session with result."""
+    return end_session(
+        session_id=body.session_id,
+        status=body.status,
+        findings=body.findings,
+    )
+
+@app.get("/sessions")
+@limiter.limit("30/minute")
+def sessions_list(request: Request, user: dict = Depends(get_current_user), limit: int = 50):
+    """Return recent session history."""
+    return get_sessions(limit=limit)

@@ -7,8 +7,8 @@ import { authApi, dashApi } from '@/lib/api'
 const PHASES = [
   { num: 1, name: 'Core Scanner + GitHub OAuth',          status: 'complete', date: 'Apr 2026' },
   { num: 2, name: 'JWT Auth + Rate Limiting + Dashboard', status: 'complete', date: 'May 21 2026' },
-  { num: 3, name: 'SaaS Foundation + Full UI',            status: 'active',   date: 'May 27 2026' },
-  { num: 4, name: 'Multi-agent Brain + Intelligence',     status: 'pending',  date: '—' },
+  { num: 3, name: 'SaaS Foundation + Full UI',            status: 'complete', date: 'May 28 2026' },
+  { num: 4, name: 'Multi-agent Brain + Intelligence',     status: 'active',   date: '—' },
   { num: 5, name: 'Production + YC W2027 Launch',         status: 'pending',  date: '—' },
 ]
 
@@ -36,28 +36,44 @@ const DONE_ITEMS = [
   'GitHub OAuth connect flow — tested and working',
   '"Phase: undefined" bug — fixed by UI rebuild',
   'JWT 30-day persistent login',
+  'Session Logger — sessions.json + 3 endpoints + Admin panel',
 ]
 
 const PENDING_ITEMS = [
   'parts-unlimited scan error (investigate in Phase 4)',
+  'Deploy staging to Cloud Run',
+  'CI/CD hardening — auto-deploy on push',
+  'Auto-provisioning — auto-add repos on GitHub connect',
+  'Multi-agent brain — Gemini → Claude → Python judge',
+  'Agent memory — scan history DB, per-repo patterns',
+  'Monitoring — Cloud Logging, Sentry, alerting',
+  'Paystack full setup — webhook + real payment test',
 ]
 
 function timeAgo(dateStr: string) {
+  if (!dateStr) return '—'
   const diff = Math.round((Date.now() - new Date(dateStr).getTime()) / 1000)
-  if (diff < 60)   return `${diff}s ago`
-  if (diff < 3600) return `${Math.floor(diff/60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`
-  return `${Math.floor(diff/86400)}d ago`
+  if (diff < 60)    return `${diff}s ago`
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return `${Math.floor(diff / 86400)}d ago`
+}
+
+function fmtDuration(s: number | null) {
+  if (s === null || s === undefined) return '—'
+  if (s < 60) return `${s}s`
+  return `${Math.floor(s / 60)}m ${s % 60}s`
 }
 
 export default function AdminPage() {
-  const router   = useRouter()
-  const [project,  setProject]  = useState<any>(null)
-  const [health,   setHealth]   = useState<any>(null)
-  const [user,     setUser]     = useState<any>(null)
-  const [commits,  setCommits]  = useState<any[]>([])
-  const [branches, setBranches] = useState<any[]>([])
-  const [loading,  setLoading]  = useState(true)
+  const router = useRouter()
+  const [project,     setProject]     = useState<any>(null)
+  const [health,      setHealth]      = useState<any>(null)
+  const [user,        setUser]        = useState<any>(null)
+  const [commits,     setCommits]     = useState<any[]>([])
+  const [branches,    setBranches]    = useState<any[]>([])
+  const [sessions,    setSessions]    = useState<any[]>([])
+  const [loading,     setLoading]     = useState(true)
   const [lastRefresh, setLastRefresh] = useState(new Date())
 
   const fetchData = useCallback(async () => {
@@ -68,40 +84,35 @@ export default function AdminPage() {
     setLastRefresh(new Date())
   }, [])
 
+  const fetchSessions = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('http://localhost:8000/sessions?limit=20', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) setSessions(await res.json())
+    } catch { setSessions([]) }
+  }, [])
+
   const fetchCommits = useCallback(async () => {
     try {
-      // Fetch all branches first
-      const branchRes = await fetch('https://api.github.com/repos/ashNikov/devsec-agent/branches')
+      const branchRes  = await fetch('https://api.github.com/repos/ashNikov/devsec-agent/branches')
       const branchData = await branchRes.json()
       setBranches(Array.isArray(branchData) ? branchData : [])
-
-      // Fetch commits from all branches
       const allCommits: any[] = []
       const seen = new Set<string>()
-
       for (const branch of (Array.isArray(branchData) ? branchData : [])) {
-        const res = await fetch(
-          `https://api.github.com/repos/ashNikov/devsec-agent/commits?sha=${branch.name}&per_page=10`
-        )
+        const res  = await fetch(`https://api.github.com/repos/ashNikov/devsec-agent/commits?sha=${branch.name}&per_page=10`)
         const data = await res.json()
         if (Array.isArray(data)) {
           for (const c of data) {
-            if (!seen.has(c.sha)) {
-              seen.add(c.sha)
-              allCommits.push({ ...c, branch: branch.name })
-            }
+            if (!seen.has(c.sha)) { seen.add(c.sha); allCommits.push({ ...c, branch: branch.name }) }
           }
         }
       }
-
-      // Sort by date desc
-      allCommits.sort((a, b) =>
-        new Date(b.commit.author.date).getTime() - new Date(a.commit.author.date).getTime()
-      )
+      allCommits.sort((a, b) => new Date(b.commit.author.date).getTime() - new Date(a.commit.author.date).getTime())
       setCommits(allCommits.slice(0, 20))
-    } catch (e) {
-      setCommits([])
-    }
+    } catch { setCommits([]) }
   }, [])
 
   useEffect(() => {
@@ -109,14 +120,12 @@ export default function AdminPage() {
       setUser(u)
       if (u.role !== 'owner') router.replace('/dashboard')
     }).catch(() => router.replace('/login'))
-
     fetchData().finally(() => setLoading(false))
     fetchCommits()
-
-    // Auto-refresh every 30 seconds
-    const id = setInterval(fetchData, 30000)
+    fetchSessions()
+    const id = setInterval(() => { fetchData(); fetchSessions() }, 30000)
     return () => clearInterval(id)
-  }, [router, fetchData, fetchCommits])
+  }, [router, fetchData, fetchCommits, fetchSessions])
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)', fontSize: 13 }}>
@@ -126,12 +135,19 @@ export default function AdminPage() {
 
   if (user?.role !== 'owner') return null
 
-  const progress = project?.current_phase_progress ?? 65
-  const tools    = health?.tools || {}
-  const sonar    = health?.sonarcloud || {}
-  const sonarStatus = sonar.status || 'unknown'
+  const progress       = project?.current_phase_progress ?? 65
+  const tools          = health?.tools || {}
+  const sonar          = health?.sonarcloud || {}
+  const sonarStatus    = sonar.status || 'unknown'
   const toolsWithSonar = { ...tools, sonarcloud: sonarStatus }
-  const activeTools = Object.values(toolsWithSonar).filter((v: any) => v === 'active').length
+  const activeTools    = Object.values(toolsWithSonar).filter((v: any) => v === 'active').length
+
+  const statusColor = (s: string) => {
+    if (s === 'completed') return '#00E5A0'
+    if (s === 'active')    return '#3B82F6'
+    if (s === 'failed')    return '#FF4757'
+    return '#FFB340'
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 960 }}>
@@ -173,8 +189,6 @@ export default function AdminPage() {
         <div style={{ height: 8, background: 'var(--elevated)', borderRadius: 4, overflow: 'hidden', marginBottom: 20 }}>
           <div style={{ height: '100%', width: `${progress}%`, background: progress >= 80 ? 'var(--accent)' : '#FFB340', borderRadius: 4, transition: 'width 0.6s ease' }} />
         </div>
-
-        {/* Phase timeline */}
         <div style={{ display: 'flex', gap: 8 }}>
           {PHASES.map(p => (
             <div key={p.num} style={{ flex: 1, padding: '10px 12px', background: 'var(--elevated)', border: `1px solid ${p.status === 'complete' ? 'rgba(0,229,160,0.3)' : p.status === 'active' ? 'rgba(59,130,246,0.3)' : 'var(--border)'}`, borderRadius: 8 }}>
@@ -227,24 +241,17 @@ export default function AdminPage() {
             </div>
           </div>
           <a href="https://github.com/ashNikov/devsec-agent/commits" target="_blank" rel="noreferrer"
-            style={{ fontSize: 11, color: '#3B82F6', textDecoration: 'none' }}>
-            View on GitHub ↗
-          </a>
+            style={{ fontSize: 11, color: '#3B82F6', textDecoration: 'none' }}>View on GitHub ↗</a>
         </div>
-
         {commits.length === 0 ? (
           <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading commits…</div>
         ) : commits.map((c, i) => (
           <div key={c.sha} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 24px', borderBottom: i < commits.length - 1 ? '1px solid var(--border)' : 'none' }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-            {/* Avatar */}
-            {c.author?.avatar_url ? (
-              <img src={c.author.avatar_url} alt="" style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0 }} />
-            ) : (
-              <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--elevated)', flexShrink: 0 }} />
-            )}
-            {/* Message */}
+            {c.author?.avatar_url
+              ? <img src={c.author.avatar_url} alt="" style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0 }} />
+              : <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--elevated)', flexShrink: 0 }} />}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {c.commit.message.split('\n')[0]}
@@ -253,17 +260,78 @@ export default function AdminPage() {
                 {c.commit.author.name} · {timeAgo(c.commit.author.date)}
               </div>
             </div>
-            {/* Branch */}
             <div style={{ padding: '2px 8px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 4, fontSize: 10, color: '#3B82F6', fontFamily: 'var(--fm)', flexShrink: 0 }}>
               {c.branch}
             </div>
-            {/* Hash */}
             <a href={c.html_url} target="_blank" rel="noreferrer"
               style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--fm)', textDecoration: 'none', flexShrink: 0 }}>
               {c.sha.slice(0, 7)}
             </a>
           </div>
         ))}
+      </div>
+
+      {/* ── SESSION HISTORY ── */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Session History</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+              {sessions.length === 0 ? 'No sessions yet — start a scan to log one' : `${sessions.length} session${sessions.length !== 1 ? 's' : ''} recorded`}
+            </div>
+          </div>
+          <button onClick={fetchSessions} style={{ padding: '3px 10px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 5, color: '#3B82F6', fontSize: 11, cursor: 'pointer' }}>
+            ↻ Refresh
+          </button>
+        </div>
+
+        {sessions.length === 0 ? (
+          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+            No sessions logged yet. Sessions are created automatically when scans run.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: 'var(--elevated)' }}>
+                  {['ID', 'User', 'Repo', 'Type', 'Started', 'Duration', 'Findings', 'Status'].map(h => (
+                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.4px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+                      {h.toUpperCase()}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sessions.map((s, i) => (
+                  <tr key={s.id}
+                    style={{ borderBottom: i < sessions.length - 1 ? '1px solid var(--border)' : 'none' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <td style={{ padding: '10px 16px', fontFamily: 'var(--fm)', color: 'var(--accent)', fontSize: 11 }}>{s.id}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-sec)' }}>{s.user}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-sec)', fontFamily: 'var(--fm)', fontSize: 11 }}>{s.repo}</td>
+                    <td style={{ padding: '10px 16px' }}>
+                      <span style={{ padding: '2px 8px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 4, fontSize: 10, color: '#3B82F6' }}>
+                        {s.scan_type}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)', fontSize: 11 }}>{timeAgo(s.started_at)}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-sec)', fontFamily: 'var(--fm)', fontSize: 11 }}>{fmtDuration(s.duration_s)}</td>
+                    <td style={{ padding: '10px 16px', color: s.findings > 0 ? '#FF4757' : 'var(--text-muted)', fontWeight: s.findings > 0 ? 600 : 400 }}>
+                      {s.findings ?? '—'}
+                    </td>
+                    <td style={{ padding: '10px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor(s.status), boxShadow: s.status === 'active' ? `0 0 5px ${statusColor(s.status)}` : 'none' }} />
+                        <span style={{ fontSize: 10, color: statusColor(s.status), fontWeight: 600 }}>{s.status.toUpperCase()}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Stack + Tool health */}
@@ -279,9 +347,7 @@ export default function AdminPage() {
             ))}
           </div>
         </div>
-
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Tool health */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px', flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 14 }}>
               Live Tool Health <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>· {activeTools}/5 active</span>
@@ -304,8 +370,6 @@ export default function AdminPage() {
               {health?.model}
             </div>
           </div>
-
-          {/* SonarCloud */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px' }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 14 }}>SonarCloud</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
