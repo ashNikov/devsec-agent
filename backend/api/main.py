@@ -568,6 +568,20 @@ def agent_brain(request: Request, body: BrainRequest = None, user: dict = Depend
         """
 
     result = multi_brain_analyze(scan_summary)
+
+    # Auto-save to agent memory
+    from db.repository import save_scan_result
+    save_scan_result(
+        repo="multi-repo-scan",
+        secrets=0,
+        vulns=0,
+        critical=0,
+        brain_winner=result["winner"],
+        brain_score=result["winner_score"],
+        tokens=result["total_tokens"],
+        analysis=result["analysis"],
+    )
+
     return {
         "status": "complete",
         "winner": result["winner"],
