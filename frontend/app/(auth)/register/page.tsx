@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { authApi } from '@/lib/api'
 
 export default function RegisterPage() {
   const router = useRouter()
-  const inviteToken = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('invite') : null
+  const [inviteToken, setInviteToken] = useState<string | null>(null)
+  useEffect(() => { setInviteToken(new URLSearchParams(window.location.search).get('invite')) }, [])
   const [form, setForm] = useState({ org_name: '', email: '', password: '', confirm: '' })
   const [showPwd, setShowPwd] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
