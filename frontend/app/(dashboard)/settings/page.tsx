@@ -1,7 +1,5 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { Suspense } from 'react'
-import { Suspense } from 'react'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
