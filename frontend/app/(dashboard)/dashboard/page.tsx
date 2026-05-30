@@ -44,7 +44,7 @@ export default function DashboardPage() {
     setBrainLoading(true)
     try {
       const token = localStorage.getItem('agentsec_token')
-      const res = await fetch('http://localhost:8000/agent/brain', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/agent/brain`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({})
