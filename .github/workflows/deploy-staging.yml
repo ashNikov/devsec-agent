@@ -28,7 +28,8 @@ jobs:
           gcloud builds submit \
             --tag us-central1-docker.pkg.dev/agent-sec-496307/agentsec/backend:latest \
             ./backend \
-            --project=agent-sec-496307
+            --project=agent-sec-496307 \
+            --suppress-logs
 
       - name: Deploy to Cloud Run staging
         run: |
