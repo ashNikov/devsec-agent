@@ -75,7 +75,7 @@ export default function ReposPage() {
   const normalised = repos.map(r => ({
     id:       r.id,
     name:     r.name || r.repo_name,
-    fullName: r.full_name || `ashNikov/${r.name || r.repo_name}`,
+    fullName: r.full_name || r.repo_name || `ashNikov/${r.name}`,
     branch:   r.default_branch || 'main',
     language: r.language || 'Unknown',
     private:  r.private ?? false,
