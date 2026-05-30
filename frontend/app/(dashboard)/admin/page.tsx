@@ -41,12 +41,12 @@ const DONE_ITEMS = [
   'Cloud Run staging — backend live at agentsec-staging URL',
   'CI/CD hardening — auto-deploy to Cloud Run on every push',
   'Auto-provisioning — repos sync from GitHub to DB on connect',
+  'Multi-agent brain — Haiku + Sonnet + Python judge (live on dashboard)',
   'Frontend Vercel deploy — public staging URL',
 ]
 
 const PENDING_ITEMS = [
   'parts-unlimited scan error (investigate in Phase 4)',
-  'Multi-agent brain — Gemini → Claude → Python judge',
   'Agent memory — scan history DB, per-repo patterns',
   'Monitoring — Cloud Logging, Sentry, alerting',
   'Paystack full setup — webhook + real payment test',
