@@ -21,7 +21,7 @@ const statusLabel: Record<string, { label: string; bg: string; text: string; bor
 
 export default function SettingsPage() {
   const router         = useRouter()
-  const searchParams   = useSearchParams()
+  const searchParams   = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
   const [githubMsg,    setGithubMsg]    = useState('')
   const [user,         setUser]         = useState<any>(null)
   const [email,        setEmail]        = useState('')
