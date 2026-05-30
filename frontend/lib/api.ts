@@ -37,6 +37,7 @@ export const authApi = {
       method: 'POST', body: JSON.stringify({ org_name, email, password }),
     }),
   me: () => request<any>('/auth/me'),
+  acceptInvite: (token: string, password: string) => request<any>('/auth/accept-invite', { method: 'POST', body: JSON.stringify({ token, password }) }),
   updateProfile: (email: string) =>
     request<any>('/auth/profile', {
       method: 'PATCH', body: JSON.stringify({ email }),

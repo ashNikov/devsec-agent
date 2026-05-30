@@ -84,6 +84,7 @@ class Invitation(Base):
     email       = Column(String, nullable=False)
     invited_by  = Column(Integer, ForeignKey("users.id"), nullable=True)
     token       = Column(String, unique=True, nullable=False, index=True)
+    role        = Column(String, default="member")
     expires_at  = Column(DateTime, nullable=False)
     accepted_at = Column(DateTime, nullable=True)
     created_at  = Column(DateTime, default=datetime.utcnow)

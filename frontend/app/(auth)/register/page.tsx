@@ -7,6 +7,7 @@ import { authApi } from '@/lib/api'
 
 export default function RegisterPage() {
   const router = useRouter()
+  const inviteToken = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('invite') : null
   const [form, setForm] = useState({ org_name: '', email: '', password: '', confirm: '' })
   const [showPwd, setShowPwd] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -21,7 +22,14 @@ export default function RegisterPage() {
     if (form.password !== form.confirm) { setError('Passwords do not match'); return }
     setLoading(true); setError('')
     try {
-      const { access_token } = await authApi.register(form.org_name, form.email, form.password)
+      let access_token: string
+      if (inviteToken) {
+        const res = await authApi.acceptInvite(inviteToken, form.password)
+        access_token = res.access_token
+      } else {
+        const res = await authApi.register(form.org_name, form.email, form.password)
+        access_token = res.access_token
+      }
       localStorage.setItem('agentsec_token', access_token)
       router.push('/dashboard')
     } catch (err: any) {
@@ -56,8 +64,8 @@ export default function RegisterPage() {
       </div>
 
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 32 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--fh)', marginBottom: 4 }}>Create account</h2>
-        <p style={{ color: 'var(--text-sec)', fontSize: 13, marginBottom: 26 }}>Start securing your repos in minutes</p>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--fh)', marginBottom: 4 }}>{inviteToken ? 'Accept Invitation' : 'Create account'}</h2>
+        <p style={{ color: 'var(--text-sec)', fontSize: 13, marginBottom: 26 }}>{inviteToken ? 'Set your password to join the workspace' : 'Start securing your repos in minutes'}</p>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {error && (
@@ -65,10 +73,12 @@ export default function RegisterPage() {
               {error}
             </div>
           )}
+          {!inviteToken && (
           <div>
             <label style={labelStyle}>WORKSPACE NAME</label>
             <input style={inputStyle} type="text" value={form.org_name} onChange={set('org_name')} placeholder="e.g. ashNikov Technologies" required />
           </div>
+          )}
           <div>
             <label style={labelStyle}>EMAIL</label>
             <input style={inputStyle} type="email" value={form.email} onChange={set('email')} placeholder="you@company.com" required />

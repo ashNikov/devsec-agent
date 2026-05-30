@@ -181,3 +181,87 @@ def me(request: Request, user: dict = Depends(get_current_user)):
         "role":     user.get("role"),
         "plan":     user.get("plan"),
     }
+
+class AcceptInviteRequest(BaseModel):
+    token: str
+    password: str
+
+@router.post("/accept-invite")
+def accept_invite(body: AcceptInviteRequest):
+    """Accept an invitation token — join existing org with assigned role."""
+    from db.models import Invitation
+    db = SessionLocal()
+    try:
+        # Find invitation
+        invite = db.query(Invitation).filter(
+            Invitation.token == body.token,
+            Invitation.accepted_at == None,
+        ).first()
+        if not invite:
+            raise HTTPException(status_code=400, detail="Invalid or expired invite token")
+        if invite.expires_at and invite.expires_at < datetime.utcnow():
+            raise HTTPException(status_code=400, detail="Invite token has expired")
+
+        # Check email not already taken
+        existing = db.query(User).filter(User.email == invite.email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
+
+        # Create user
+        user = User(
+            email=invite.email,
+            hashed_password=bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode(),
+            email_verified=False,
+            is_active=True,
+            created_at=datetime.utcnow(),
+        )
+        db.add(user)
+        db.flush()
+
+        # Join existing org with invite role
+        role = invite.role if invite.role else "member"
+        member = OrganizationMember(
+            org_id=invite.org_id,
+            user_id=user.id,
+            role=role,
+            joined_at=datetime.utcnow(),
+        )
+        db.add(member)
+
+        # Mark invite as accepted
+        invite.accepted_at = datetime.utcnow()
+
+        # Get org details
+        org = db.query(Organization).filter(Organization.id == invite.org_id).first()
+
+        db.add(AuditLog(
+            org_id=invite.org_id,
+            user_id=user.id,
+            action="user.accept_invite",
+            resource="user",
+            details=f"User accepted invite: {invite.email} as {role}",
+            created_at=datetime.utcnow(),
+        ))
+        db.commit()
+
+        # Mint JWT
+        token_jwt = create_access_token(data={
+            "sub":    invite.email,
+            "org_id": invite.org_id,
+            "role":   role,
+            "plan":   org.plan if org else "free",
+        })
+
+        return {
+            "access_token": token_jwt,
+            "token_type":   "bearer",
+            "user": {
+                "email":    invite.email,
+                "org_name": org.name if org else "",
+                "org_slug": org.slug if org else "",
+                "plan":     org.plan if org else "free",
+                "role":     role,
+            }
+        }
+    finally:
+        db.close()
