@@ -534,6 +534,51 @@ def approval_test(request: Request, user: dict = Depends(get_current_user)):
     )
     return {"approval_id": approval_id, "message": "Approval request created — check Slack + dashboard"}
 
+
+# ── MULTI-AGENT BRAIN ────────────────────────────────────
+from agent.multi_brain import multi_brain_analyze
+
+class BrainRequest(BaseModel):
+    scan_summary: str = None
+
+@app.post("/agent/brain")
+@limiter.limit("5/minute")
+def agent_brain(request: Request, body: BrainRequest = None, user: dict = Depends(get_current_user)):
+    """Run multi-agent brain analysis on latest scan results."""
+    from tools.gitleaks import scan_repo_for_secrets as gitleaks_scan
+    from tools.trivy import scan_filesystem
+
+    # Build scan summary from live data or use provided summary
+    if body and body.scan_summary:
+        scan_summary = body.scan_summary
+    else:
+        project_path = os.path.expanduser("~/projects/devsec-agent")
+        gl = gitleaks_scan(project_path)
+        tv = scan_filesystem(project_path)
+        secrets_count = gl.get("total_secrets_found", 0)
+        vulns_count = tv.get("total", 0)
+        critical_count = sum(1 for f in tv.get("findings", []) if f.get("severity") == "CRITICAL")
+        scan_summary = f"""
+        Scan results for AgentSec project:
+        - {secrets_count} secrets detected
+        - {vulns_count} vulnerabilities found ({critical_count} CRITICAL)
+        - Repos scanned: devsec-agent
+        - GCP project: agent-sec-496307
+        - Tools: Gitleaks v8.18.2, Trivy v0.70.0
+        """
+
+    result = multi_brain_analyze(scan_summary)
+    return {
+        "status": "complete",
+        "winner": result["winner"],
+        "winner_score": result["winner_score"],
+        "analysis": result["analysis"],
+        "brain_a": result["brain_a"],
+        "brain_b": result["brain_b"],
+        "brain_b_skipped": result["brain_b_skipped"],
+        "total_tokens": result["total_tokens"],
+        "scan_summary": scan_summary.strip()
+    }
 # ── SAAS ROUTERS ─────────────────────────────────────────
 from api.routes.auth import router as auth_router
 from api.routes.org import router as org_router

@@ -36,6 +36,24 @@ export default function DashboardPage() {
   const [org,      setOrg]      = useState<any>(null)
   const [history,  setHistory]  = useState<any[]>([])
   const [loading,  setLoading]  = useState(true)
+  const [brainResult, setBrainResult] = useState<any>(null)
+  const [brainLoading, setBrainLoading] = useState(false)
+
+
+  const runBrainAnalysis = async () => {
+    setBrainLoading(true)
+    try {
+      const token = localStorage.getItem('agentsec_token')
+      const res = await fetch('http://localhost:8000/agent/brain', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
+      const data = await res.json()
+      setBrainResult(data)
+    } catch (e) { console.error('Brain failed', e) }
+    finally { setBrainLoading(false) }
+  }
 
   useEffect(() => {
     Promise.allSettled([
@@ -225,6 +243,37 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* BRAIN */}
+      <div style={{ background: 'var(--surface)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 12, padding: '20px 24px', marginTop: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>🧠 Multi-Agent Brain Analysis</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Claude Haiku + Sonnet + Python Judge</div>
+          </div>
+          <button onClick={runBrainAnalysis} disabled={brainLoading} style={{ padding: '8px 18px', background: brainLoading ? 'var(--elevated)' : 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 8, color: '#3B82F6', fontSize: 13, fontWeight: 600, cursor: brainLoading ? 'wait' : 'pointer' }}>
+            {brainLoading ? '🔄 Analyzing...' : '▶ Run Analysis'}
+          </button>
+        </div>
+        {brainResult && (
+          <div>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+              <div style={{ padding: '6px 14px', background: 'rgba(0,229,160,0.08)', border: '1px solid rgba(0,229,160,0.2)', borderRadius: 6, fontSize: 11, color: '#00E5A0' }}>Winner: {brainResult.winner?.split('-').slice(1,3).join(' ')}</div>
+              <div style={{ padding: '6px 14px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 6, fontSize: 11, color: '#3B82F6' }}>Score: {brainResult.winner_score}</div>
+              <div style={{ padding: '6px 14px', background: 'rgba(255,179,64,0.08)', border: '1px solid rgba(255,179,64,0.2)', borderRadius: 6, fontSize: 11, color: '#FFB340' }}>Tokens: {brainResult.total_tokens}</div>
+              {brainResult.brain_b_skipped && <div style={{ padding: '6px 14px', background: 'rgba(0,229,160,0.08)', border: '1px solid rgba(0,229,160,0.2)', borderRadius: 6, fontSize: 11, color: '#00E5A0' }}>✓ Brain B skipped</div>}
+            </div>
+            <div style={{ background: 'var(--elevated)', borderRadius: 8, padding: 16, fontSize: 12, color: 'var(--text-sec)', lineHeight: 1.7, whiteSpace: 'pre-wrap', maxHeight: 400, overflowY: 'auto', fontFamily: 'var(--fm)' }}>
+              {brainResult.analysis}
+            </div>
+          </div>
+        )}
+        {!brainResult && !brainLoading && (
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '20px 0' }}>
+            Click "Run Analysis" to trigger the multi-agent brain
+          </div>
+        )}
       </div>
     </div>
   )
