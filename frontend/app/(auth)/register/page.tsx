@@ -8,6 +8,8 @@ import { authApi } from '@/lib/api'
 export default function RegisterPage() {
   const router = useRouter()
   const [form, setForm] = useState({ org_name: '', email: '', password: '', confirm: '' })
+  const [showPwd, setShowPwd] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -73,11 +75,21 @@ export default function RegisterPage() {
           </div>
           <div>
             <label style={labelStyle}>PASSWORD</label>
-            <input style={inputStyle} type="password" value={form.password} onChange={set('password')} placeholder="Min. 8 characters" required minLength={8} />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input style={{ ...inputStyle, paddingRight: 40 }} type={showPwd ? 'text' : 'password'} value={form.password} onChange={set('password')} placeholder="Min. 8 characters" required minLength={8} />
+              <button type="button" onClick={() => setShowPwd(p => !p)} style={{ position: 'absolute', right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 15, padding: 0, lineHeight: 1 }}>
+                {showPwd ? '🔒' : '👁'}
+              </button>
+            </div>
           </div>
           <div>
             <label style={labelStyle}>CONFIRM PASSWORD</label>
-            <input style={inputStyle} type="password" value={form.confirm} onChange={set('confirm')} placeholder="••••••••" required />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input style={{ ...inputStyle, paddingRight: 40 }} type={showConfirm ? 'text' : 'password'} value={form.confirm} onChange={set('confirm')} placeholder="••••••••" required />
+              <button type="button" onClick={() => setShowConfirm(p => !p)} style={{ position: 'absolute', right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 15, padding: 0, lineHeight: 1 }}>
+                {showConfirm ? '🔒' : '👁'}
+              </button>
+            </div>
           </div>
           <button type="submit" disabled={loading} style={{ width: '100%', padding: '10px 16px', background: 'var(--accent)', border: 'none', borderRadius: 8, color: 'var(--bg)', fontSize: 13, fontWeight: 700, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 4 }}>
             {loading ? 'Creating account…' : 'Create Account'}
