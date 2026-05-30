@@ -372,6 +372,46 @@ def provision_fix(request: Request, body: ProvisionApproveRequest, user: dict = 
         return {"status": "error", "error": f"Unknown action: {body.action}"}
     return result
 
+
+async def _auto_provision_repos(github_token: str, org_id: int, plan: str):
+    """Fetch repos from GitHub and auto-save to UserRepo table."""
+    import httpx as _httpx
+    from db.models import SessionLocal as _SL2, UserRepo as _UR, Organization as _Org
+    MAX_REPOS = 1 if plan == "free" else 999
+    try:
+        async with _httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner",
+                headers={"Authorization": f"Bearer {github_token}", "Accept": "application/vnd.github.v3+json"},
+                timeout=10,
+            )
+            repos = resp.json() if resp.status_code == 200 else []
+        if not isinstance(repos, list):
+            return
+        db = _SL2()
+        try:
+            existing = {r.repo_name for r in db.query(_UR).filter(_UR.org_id == org_id, _UR.is_active == True).all()}
+            added = 0
+            for repo in repos:
+                name = repo.get("full_name") or repo.get("name", "")
+                if not name or name in existing:
+                    continue
+                if added + len(existing) >= MAX_REPOS:
+                    break
+                db.add(_UR(
+                    org_id=org_id,
+                    repo_name=name,
+                    repo_url=repo.get("html_url", ""),
+                    is_active=True,
+                ))
+                added += 1
+            if added > 0:
+                db.commit()
+        finally:
+            db.close()
+    except Exception:
+        pass
+
 # ── GITHUB OAUTH ENDPOINTS ────────────────────────────────
 @app.get("/auth/login")
 def auth_login():
@@ -777,6 +817,13 @@ async def github_connect_callback(code: str, state: str, request: Request):
             created_at=__import__("datetime").datetime.utcnow(),
         ))
         db.commit()
+
+        # Auto-provision repos after GitHub connect
+        org = db.query(_User).filter(_User.email == user_email).first()
+        from db.models import Organization as _OrgModel
+        org_obj = db.query(_OrgModel).filter(_OrgModel.id == org_id).first()
+        plan = org_obj.plan if org_obj else "free"
+        await _auto_provision_repos(github_token, org_id, plan)
 
         login = github_user.get('login', '')
         return RedirectResponse(url=f"{FRONTEND_URL}/settings?github=connected&login={login}")

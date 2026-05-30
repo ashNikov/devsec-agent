@@ -51,7 +51,8 @@ export const dashApi = {
 }
 
 export const reposApi = {
-  list:       () => request<any[]>('/repos'),
+  list:       () => request<any[]>('/org/repos'),
+  sync:       () => request<any>('/org/repos/sync', { method: 'POST' }),
   triggerScan: () => request<any>('/scheduler/trigger', { method: 'POST' }),
   scanRepo:   (repo_name: string) =>
     request<any>('/scan/repo', { method: 'POST', body: JSON.stringify({ repo_name }) }),

@@ -205,6 +205,104 @@ def add_repo(request: Request, body: AddRepoRequest, user: dict = Depends(get_cu
         db.close()
 
 
+
+@router.post("/repos/sync")
+async def sync_repos(request: Request, user: dict = Depends(get_current_user)):
+    """Sync repos from GitHub into DB. Adds new, deactivates deleted."""
+    import httpx
+    db = SessionLocal()
+    try:
+        org_id = user.get("org_id")
+        org = db.query(Organization).filter(Organization.id == org_id).first()
+        plan = org.plan if org else "free"
+        MAX_REPOS = 1 if plan == "free" else 999
+
+        # Get GitHub token from Integration table
+        from db.models import Integration
+        intg = db.query(Integration).filter(
+            Integration.org_id == org_id,
+            Integration.provider == "github",
+            Integration.is_active == True
+        ).first()
+
+        if not intg:
+            import os
+            github_token = os.getenv("GITHUB_TOKEN", "")
+        else:
+            github_token = intg.access_token_encrypted
+
+        if not github_token:
+            raise HTTPException(status_code=400, detail="GitHub not connected")
+
+        # Fetch repos from GitHub
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner",
+                headers={"Authorization": f"Bearer {github_token}", "Accept": "application/vnd.github.v3+json"},
+                timeout=10,
+            )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="GitHub API error")
+
+        github_repos = {r["full_name"]: r for r in resp.json() if isinstance(r, dict)}
+
+        # Get existing DB repos
+        db_repos = db.query(UserRepo).filter(UserRepo.org_id == org_id).all()
+        db_repo_names = {r.repo_name: r for r in db_repos}
+
+        added = 0
+        deactivated = 0
+
+        # Add new repos
+        for name, repo_data in github_repos.items():
+            if name in db_repo_names:
+                # Reactivate if it was deactivated
+                if not db_repo_names[name].is_active:
+                    db_repo_names[name].is_active = True
+                    added += 1
+            else:
+                active_count = sum(1 for r in db_repos if r.is_active)
+                if active_count >= MAX_REPOS:
+                    break
+                db.add(UserRepo(
+                    org_id=org_id,
+                    repo_name=name,
+                    repo_url=repo_data.get("html_url", ""),
+                    added_at=datetime.utcnow(),
+                    is_active=True,
+                ))
+                added += 1
+
+        # Deactivate repos deleted from GitHub
+        for name, repo_obj in db_repo_names.items():
+            if name not in github_repos and repo_obj.is_active:
+                repo_obj.is_active = False
+                deactivated += 1
+
+        db.add(AuditLog(
+            org_id=org_id,
+            action="repo.sync",
+            resource="github",
+            details=f"Sync complete: +{added} added, -{deactivated} deactivated",
+            created_at=datetime.utcnow(),
+        ))
+        db.commit()
+
+        # Return updated list
+        repos = db.query(UserRepo).filter(
+            UserRepo.org_id == org_id,
+            UserRepo.is_active == True
+        ).all()
+        return {
+            "status": "synced",
+            "added": added,
+            "deactivated": deactivated,
+            "total": len(repos),
+            "repos": [{"id": r.id, "repo_name": r.repo_name, "repo_url": r.repo_url, "added_at": str(r.added_at)} for r in repos]
+        }
+    finally:
+        db.close()
+
 @router.post("/api-keys")
 def create_api_key(request: Request, body: CreateApiKeyRequest, user: dict = Depends(get_current_user)):
     """Create an API key for CI/CD integration."""

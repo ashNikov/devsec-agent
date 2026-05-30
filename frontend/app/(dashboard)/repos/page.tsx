@@ -21,10 +21,15 @@ export default function ReposPage() {
   const [msg,          setMsg]          = useState('')
 
   useEffect(() => {
+    // Load from DB first (instant)
     reposApi.list()
       .then(data => setRepos(Array.isArray(data) ? data : []))
       .catch(() => setRepos([]))
       .finally(() => setLoading(false))
+    // Background sync with GitHub (auto-updates DB)
+    reposApi.sync()
+      .then(data => { if (data?.repos) setRepos(data.repos) })
+      .catch(() => {}) // silent fail — DB data still shown
   }, [])
 
   const handleScanAll = async () => {
