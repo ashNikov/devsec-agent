@@ -1,26 +1,60 @@
 {
   "project": "AgentSec",
   "version": "3.0",
-  "phase": "Phase 4 \u2014 IN PROGRESS",
+  "phase": "Phase 4 — IN PROGRESS",
   "current_phase": 4,
   "current_phase_name": "Multi-agent Brain + Intelligence Layer",
-  "current_phase_progress": 80,
-  "last_commit": "503cd00",
+  "current_phase_progress": 95,
+  "last_commit": "2e7715f",
   "updated_at": "2026-05-30",
-  "next_phase": "Phase 4 \u2014 Multi-agent brain (secrets + misconfiguration focus)",
+  "next_phase": "Phase 5 — Production + YC W2027 Launch",
   "stack": {
     "backend": "FastAPI + SQLite + SQLAlchemy + Alembic",
     "frontend": "Next.js",
     "auth": "JWT (HS256) + email/password + GitHub OAuth",
     "billing": "Paystack (configured)",
     "agent": "Haiku + Sonnet + Python Judge",
-    "infra": "GCP (Terraform + Ansible)"
+    "infra": "GCP (Terraform + Ansible)",
+    "monitoring": "Sentry + structured logging"
   },
   "commercial_focus": "Automatically detect and remediate exposed secrets + cloud misconfigurations for small engineering teams",
   "tiers": {
     "free": "1 repo, scan only, no auto-remediation, 3 members",
     "pro": "unlimited repos, auto-remediation, scan history, multi-agent brain"
   },
-  "staging_url": "https://agentsec-staging-468774339170.us-central1.run.app",
-  "frontend_url": "https://frontend-alpha-nine-71.vercel.app"
+  "staging_url": "https://agentsec-staging-4ojxcrmmja-uc.a.run.app",
+  "frontend_url": "https://frontend-alpha-nine-71.vercel.app",
+  "done": [
+    "JWT auth + rate limiting",
+    "SaaS org/user/billing DB models",
+    "Email/password register + login",
+    "Full SaaS UI — all 6 pages + Admin panel",
+    "UI wired to live backend data",
+    "/findings endpoint with 5min cache",
+    "Paystack billing endpoints + plan enforcement",
+    "CI/CD pipeline (Gitleaks + Trivy + SonarCloud)",
+    "GitHub OAuth",
+    "Slack webhook notifications",
+    "Auto-scheduler — scans every 6 hours",
+    "Approval workflow",
+    "Remediation engine (IAM, Dockerfile, secret rotation)",
+    "Auto-provisioner — adds CI/CD, gitignore, branch protection",
+    "Compliance board — per-repo scores",
+    "Multi-agent brain — Haiku + Sonnet + Python judge",
+    "Agent memory — scan history DB + per-repo patterns",
+    "Scan history page — full table with stats",
+    "Repo trend badges — IMPROVING/WORSENING/STABLE",
+    "Sentry error tracking",
+    "Structured logging (Python logging module)",
+    "Paystack webhook configured",
+    "Password eye icon — login + register",
+    "Invite flow fix",
+    "Brain results auto-saved to DB",
+    "Sidebar — Scan History nav link",
+    "VSCode + WSL terminal setup"
+  ],
+  "pending": [
+    "Paystack end-to-end payment test — billing org lookup bug on staging",
+    "agentsec.config.json pending list cleanup"
+  ]
 }
