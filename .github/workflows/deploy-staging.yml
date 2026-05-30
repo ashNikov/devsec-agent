@@ -23,13 +23,13 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-      - name: Build and push image via Cloud Build
+      - name: Build Docker image
         run: |
-          gcloud builds submit \
-            --tag us-central1-docker.pkg.dev/agent-sec-496307/agentsec/backend:latest \
-            ./backend \
-            --project=agent-sec-496307 \
-            --suppress-logs
+          docker build -t us-central1-docker.pkg.dev/agent-sec-496307/agentsec/backend:latest ./backend
+
+      - name: Push image to Artifact Registry
+        run: |
+          docker push us-central1-docker.pkg.dev/agent-sec-496307/agentsec/backend:latest
 
       - name: Deploy to Cloud Run staging
         run: |
