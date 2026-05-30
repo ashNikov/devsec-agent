@@ -37,13 +37,14 @@ const DONE_ITEMS = [
   '"Phase: undefined" bug — fixed by UI rebuild',
   'JWT 30-day persistent login',
   'Session Logger — sessions.json + 3 endpoints + Admin panel',
+  'Cloud Run staging — backend live at agentsec-staging URL',
+  'CI/CD hardening — auto-deploy to Cloud Run on every push',
+  'Auto-provisioning — repos sync from GitHub to DB on connect',
+  'Frontend Vercel deploy — public staging URL',
 ]
 
 const PENDING_ITEMS = [
   'parts-unlimited scan error (investigate in Phase 4)',
-  'Deploy staging to Cloud Run',
-  'CI/CD hardening — auto-deploy on push',
-  'Auto-provisioning — auto-add repos on GitHub connect',
   'Multi-agent brain — Gemini → Claude → Python judge',
   'Agent memory — scan history DB, per-repo patterns',
   'Monitoring — Cloud Logging, Sentry, alerting',
