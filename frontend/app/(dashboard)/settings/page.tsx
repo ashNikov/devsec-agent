@@ -1,8 +1,10 @@
 'use client'
 export const dynamic = 'force-dynamic'
+import { Suspense } from 'react'
+import { Suspense } from 'react'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { authApi, settingsApi, orgApi } from '@/lib/api'
 
 const INTEGRATION_ICONS: Record<string, string> = {
