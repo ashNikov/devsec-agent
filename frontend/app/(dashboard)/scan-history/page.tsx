@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
-import { authFetch } from '@/lib/api'
+import { request } from '@/lib/api'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -18,8 +18,7 @@ export default function ScanHistoryPage() {
   const [error,   setError]   = useState('')
 
   useEffect(() => {
-    authFetch(`${API}/history/scans?limit=50`)
-      .then(r => r.json())
+    request<any[]>(`${API}/history/scans?limit=50`)
       .then(data => setScans(Array.isArray(data) ? data : []))
       .catch(() => setError('Failed to load scan history'))
       .finally(() => setLoading(false))
