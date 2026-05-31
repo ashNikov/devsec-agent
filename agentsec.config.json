@@ -4,9 +4,9 @@
   "phase": "Phase 4 — IN PROGRESS",
   "current_phase": 4,
   "current_phase_name": "Multi-agent Brain + Intelligence Layer",
-  "current_phase_progress": 95,
-  "last_commit": "2e7715f",
-  "updated_at": "2026-05-30",
+  "current_phase_progress": 98,
+  "last_commit": "72efe3a",
+  "updated_at": "2026-05-31",
   "next_phase": "Phase 5 — Production + YC W2027 Launch",
   "stack": {
     "backend": "FastAPI + SQLite + SQLAlchemy + Alembic",
@@ -22,7 +22,7 @@
     "free": "1 repo, scan only, no auto-remediation, 3 members",
     "pro": "unlimited repos, auto-remediation, scan history, multi-agent brain"
   },
-  "staging_url": "https://agentsec-staging-4ojxcrmmja-uc.a.run.app",
+  "staging_url": "https://agentsec-staging-468774339170.us-central1.run.app",
   "frontend_url": "https://frontend-alpha-nine-71.vercel.app",
   "done": [
     "JWT auth + rate limiting",
@@ -51,10 +51,15 @@
     "Invite flow fix",
     "Brain results auto-saved to DB",
     "Sidebar — Scan History nav link",
-    "VSCode + WSL terminal setup"
+    "VSCode + WSL terminal setup",
+    "Auto-deploy CI/CD — every git push to main deploys to staging automatically",
+    "All 5 scanners ACTIVE on staging — Gitleaks, Trivy, GitHub, GCP, SonarCloud",
+    "GCP Cloud Run env vars configured — GITHUB_TOKEN, SONARCLOUD_TOKEN, GCP_PROJECT_ID",
+    "Scanner status checks use env vars instead of CLI commands"
   ],
   "pending": [
-    "Paystack end-to-end payment test — billing org lookup bug on staging",
-    "agentsec.config.json pending list cleanup"
+    "Billing org lookup bug — /billing/initialize returns org not found on staging",
+    "GitHub OAuth login button — wire frontend login/page.tsx to /auth/login",
+    "Password eye icon on register page — auto-fixes after next deploy"
   ]
 }
