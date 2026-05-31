@@ -25,3 +25,4 @@ frontend/.next/
 # Security — never scan or commit these
 backend/.env
 frontend/.next/
+backend/keys/

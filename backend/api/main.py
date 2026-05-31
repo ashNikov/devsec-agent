@@ -160,8 +160,8 @@ def _refresh_health():
         _health_cache["tools"] = {
             "gitleaks": check_tool(["gitleaks", "version"]),
             "trivy":    check_tool(["trivy", "--version"]),
-            "github":   check_tool(["gh", "auth", "status"]),
-            "gcp":      check_tool(["gcloud", "config", "get-value", "account"]),
+            "github":   "active" if os.getenv("GITHUB_TOKEN") else "unavailable",
+            "gcp":      "active" if os.getenv("GCP_PROJECT_ID") else "unavailable",
         }
         _health_cache["sonarcloud"] = get_sonarcloud_status()
         time.sleep(60)
