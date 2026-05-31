@@ -227,3 +227,58 @@ resource "google_cloud_run_v2_service_iam_member" "staging_public" {
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
+# Enable Cloud SQL API
+resource "google_project_service" "sqladmin" {
+  project            = var.project_id
+  service            = "sqladmin.googleapis.com"
+  disable_on_destroy = false
+}
+
+# Cloud SQL PostgreSQL instance
+resource "google_sql_database_instance" "agentsec" {
+  project          = var.project_id
+  name             = "agentsec-db"
+  database_version = "POSTGRES_15"
+  region           = var.region
+
+  settings {
+    tier = "db-f1-micro"
+
+    backup_configuration {
+      enabled = true
+    }
+
+    ip_configuration {
+      ipv4_enabled = true
+      authorized_networks {
+        name  = "allow-all-temp"
+        value = "0.0.0.0/0"
+      }
+    }
+  }
+
+  deletion_protection = false
+  depends_on          = [google_project_service.sqladmin]
+}
+
+# Create the agentsec database
+resource "google_sql_database" "agentsec" {
+  project  = var.project_id
+  name     = "agentsec"
+  instance = google_sql_database_instance.agentsec.name
+}
+
+# Create DB user
+resource "google_sql_user" "agentsec" {
+  project  = var.project_id
+  name     = "agentsec"
+  instance = google_sql_database_instance.agentsec.name
+  password = "AgentSec2026!Secure"
+}
+
+# Grant service account Cloud SQL access
+resource "google_project_iam_member" "agentsec_sql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.agentsec.email}"
+}

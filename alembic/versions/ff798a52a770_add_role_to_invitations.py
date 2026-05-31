@@ -19,7 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('invitations', sa.Column('role', sa.String(), nullable=True))
+    pass  # role already included in saas_foundation_schema migration
 
 def downgrade() -> None:
-    op.drop_column('invitations', 'role')
+    pass  # role already included in saas_foundation_schema migration

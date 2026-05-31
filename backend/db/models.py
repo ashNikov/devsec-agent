@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_URL = os.getenv("AGENTSEC_DB_URL", "sqlite:////tmp/agentsec.db")
-engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
+DB_URL = os.getenv("DATABASE_URL", os.getenv("AGENTSEC_DB_URL", "sqlite:////tmp/agentsec.db"))
+engine = create_engine(DB_URL, connect_args={"check_same_thread": False} if DB_URL.startswith("sqlite") else {})
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 

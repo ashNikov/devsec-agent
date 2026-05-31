@@ -13,7 +13,6 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
-    # ── NEW TABLES ──────────────────────────────────────────
 
     op.create_table('organizations',
         sa.Column('id', sa.Integer(), primary_key=True, index=True),
@@ -56,6 +55,7 @@ def upgrade() -> None:
         sa.Column('email', sa.String(), nullable=False),
         sa.Column('invited_by', sa.Integer(), sa.ForeignKey('users.id'), nullable=True),
         sa.Column('token', sa.String(), unique=True, nullable=False, index=True),
+        sa.Column('role', sa.String(), default='member'),
         sa.Column('expires_at', sa.DateTime(), nullable=False),
         sa.Column('accepted_at', sa.DateTime(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=True),
@@ -106,6 +106,45 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(), nullable=True),
     )
 
+    op.create_table('scan_results',
+        sa.Column('id', sa.Integer(), primary_key=True, index=True),
+        sa.Column('org_id', sa.Integer(), sa.ForeignKey('organizations.id'), nullable=True),
+        sa.Column('user_id', sa.Integer(), sa.ForeignKey('users.id'), nullable=True),
+        sa.Column('scanned_at', sa.DateTime(), nullable=True),
+        sa.Column('repo', sa.String(), index=True),
+        sa.Column('secrets_found', sa.Integer(), default=0),
+        sa.Column('vulns_found', sa.Integer(), default=0),
+        sa.Column('critical_count', sa.Integer(), default=0),
+        sa.Column('brain_winner', sa.String(), nullable=True),
+        sa.Column('brain_score', sa.Float(), nullable=True),
+        sa.Column('tokens_used', sa.Integer(), default=0),
+        sa.Column('analysis', sa.Text(), nullable=True),
+        sa.Column('status', sa.String(), default='complete'),
+    )
+
+    op.create_table('remediation_actions',
+        sa.Column('id', sa.Integer(), primary_key=True, index=True),
+        sa.Column('org_id', sa.Integer(), sa.ForeignKey('organizations.id'), nullable=True),
+        sa.Column('user_id', sa.Integer(), sa.ForeignKey('users.id'), nullable=True),
+        sa.Column('actioned_at', sa.DateTime(), nullable=True),
+        sa.Column('repo', sa.String(), index=True),
+        sa.Column('action', sa.String(), nullable=True),
+        sa.Column('approved_by', sa.String(), nullable=True),
+        sa.Column('success', sa.Boolean(), default=True),
+        sa.Column('details', sa.Text(), nullable=True),
+    )
+
+    op.create_table('repo_patterns',
+        sa.Column('id', sa.Integer(), primary_key=True, index=True),
+        sa.Column('org_id', sa.Integer(), sa.ForeignKey('organizations.id'), nullable=True),
+        sa.Column('repo', sa.String(), index=True),
+        sa.Column('finding_type', sa.String(), nullable=True),
+        sa.Column('occurrence_count', sa.Integer(), default=1),
+        sa.Column('first_seen', sa.DateTime(), nullable=True),
+        sa.Column('last_seen', sa.DateTime(), nullable=True),
+        sa.Column('is_false_positive', sa.Boolean(), default=False),
+    )
+
     op.create_table('findings',
         sa.Column('id', sa.Integer(), primary_key=True, index=True),
         sa.Column('scan_id', sa.Integer(), sa.ForeignKey('scan_results.id'), nullable=True),
@@ -154,33 +193,15 @@ def upgrade() -> None:
         sa.Column('is_active', sa.Boolean(), default=True),
     )
 
-    # ── FK COLUMNS ON EXISTING TABLES ───────────────────────
-
-    with op.batch_alter_table('scan_results', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('org_id', sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column('user_id', sa.Integer(), nullable=True))
-
-    with op.batch_alter_table('remediation_actions', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('org_id', sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column('user_id', sa.Integer(), nullable=True))
-
-    with op.batch_alter_table('repo_patterns', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('org_id', sa.Integer(), nullable=True))
-
 
 def downgrade() -> None:
-    with op.batch_alter_table('repo_patterns', schema=None) as batch_op:
-        batch_op.drop_column('org_id')
-    with op.batch_alter_table('remediation_actions', schema=None) as batch_op:
-        batch_op.drop_column('user_id')
-        batch_op.drop_column('org_id')
-    with op.batch_alter_table('scan_results', schema=None) as batch_op:
-        batch_op.drop_column('user_id')
-        batch_op.drop_column('org_id')
     op.drop_table('integrations')
     op.drop_table('notification_settings')
     op.drop_table('scan_schedules')
     op.drop_table('findings')
+    op.drop_table('repo_patterns')
+    op.drop_table('remediation_actions')
+    op.drop_table('scan_results')
     op.drop_table('audit_logs')
     op.drop_table('stripe_events')
     op.drop_table('user_repos')
