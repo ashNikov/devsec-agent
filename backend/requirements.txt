@@ -96,3 +96,4 @@ websockets==16.0
 wrapt==2.1.2
 google-cloud-logging==3.15.0
 sentry-sdk==2.61.0
+psycopg2-binary==2.9.12
