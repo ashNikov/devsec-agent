@@ -25,6 +25,7 @@ jobs:
 
       - name: Build Docker image
         run: |
+          cp agentsec.config.json backend/agentsec.config.json
           docker build -t us-central1-docker.pkg.dev/agent-sec-496307/agentsec/backend:latest ./backend
 
       - name: Push image to Artifact Registry

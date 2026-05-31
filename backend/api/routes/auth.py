@@ -74,7 +74,7 @@ def register(body: RegisterRequest):
         org = Organization(
             name=body.org_name,
             slug=_slug_from_name(body.org_name),
-            plan="free",
+            plan="pro" if body.email == os.getenv("OWNER_EMAIL", "") else "free",
             scans_this_month=0,
             created_at=datetime.utcnow(),
             is_active=True,

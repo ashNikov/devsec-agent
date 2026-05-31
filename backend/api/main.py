@@ -280,7 +280,7 @@ import json as _json
 def project_status():
     """Return live project state from agentsec.config.json."""
     try:
-        config_path = os.path.expanduser("~/projects/devsec-agent/agentsec.config.json")
+        config_path = "/app/agentsec.config.json" if os.path.exists("/app/agentsec.config.json") else os.path.expanduser("~/projects/devsec-agent/agentsec.config.json")
         with open(config_path) as f:
             return _json.load(f)
     except Exception as e:
