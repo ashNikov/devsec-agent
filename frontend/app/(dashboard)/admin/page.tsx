@@ -80,7 +80,7 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     await Promise.allSettled([
-      fetch('http://localhost:8000/project/status').then(r => r.json()).then(setProject),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/project/status`).then(r => r.json()).then(setProject),
       dashApi.health().then(setHealth),
     ])
     setLastRefresh(new Date())
