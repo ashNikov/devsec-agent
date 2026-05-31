@@ -81,7 +81,7 @@ from auth.jwt_handler import create_access_token, verify_access_token
 GITHUB_CLIENT_ID     = os.getenv("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
 OAUTH_REDIRECT_URI   = os.getenv("OAUTH_REDIRECT_URI", "https://agentsec-staging-468774339170.us-central1.run.app/auth/callback")
-FRONTEND_URL         = os.getenv("FRONTEND_URL", "http://localhost:3000")
+FRONTEND_URL         = os.getenv("FRONTEND_URL", "https://frontend-alpha-nine-71.vercel.app")
 
 # Rate limiter — keyed by IP address
 limiter = Limiter(key_func=get_remote_address, default_limits=["50/minute"])
