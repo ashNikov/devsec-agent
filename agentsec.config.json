@@ -62,6 +62,12 @@
     "Admin panel \u2014 restricted to allowed emails list",
     "sync_repos \u2014 no fallback to env GITHUB_TOKEN",
     "All 5 scanners ACTIVE on staging",
+    "Vercel connected to GitHub \u2014 auto-deploys on push",
+    "GitHub OAuth \u2014 creates user+org in DB, auto-populates repos",
+    "Repo filter \u2014 only owner repos shown (type=owner)",
+    "Admin panel \u2014 restricted to allowed emails list",
+    "sync_repos \u2014 no fallback to env GITHUB_TOKEN",
+    "All 5 scanners ACTIVE on staging",
     "Vercel connected to GitHub \u2014 auto-deploys on push"
   ],
   "pending": [
