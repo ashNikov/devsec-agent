@@ -409,7 +409,7 @@ async def _auto_provision_repos(github_token: str, org_id: int, plan: str):
     try:
         async with _httpx.AsyncClient() as client:
             resp = await client.get(
-                "https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner",
+                "https://api.github.com/user/repos?per_page=100&sort=updated&type=owner",
                 headers={"Authorization": f"Bearer {github_token}", "Accept": "application/vnd.github.v3+json"},
                 timeout=10,
             )
