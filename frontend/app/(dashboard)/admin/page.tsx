@@ -5,6 +5,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { authApi, dashApi } from '@/lib/api'
 
+const ADMIN_EMAILS = ['s.uwemudo@gmail.com', 'victoriaakpa8@gmail.com', 'ashniovtech@gmail.com']
+
 const PHASES = [
   { num: 1, name: 'Core Scanner + GitHub OAuth',          status: 'complete', date: 'Apr 2026' },
   { num: 2, name: 'JWT Auth + Rate Limiting + Dashboard', status: 'complete', date: 'May 21 2026' },
@@ -88,8 +90,8 @@ export default function AdminPage() {
 
   const fetchSessions = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token')
-      const res = await fetch('http://localhost:8000/sessions?limit=20', {
+      const token = localStorage.getItem('agentsec_token')
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/sessions?limit=20`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (res.ok) setSessions(await res.json())
@@ -120,7 +122,7 @@ export default function AdminPage() {
   useEffect(() => {
     authApi.me().then(u => {
       setUser(u)
-      if (u.role !== 'owner') router.replace('/dashboard')
+      if (!ADMIN_EMAILS.includes(u.email) && u.role !== 'owner') router.replace('/dashboard')
     }).catch(() => router.replace('/login'))
     fetchData().finally(() => setLoading(false))
     fetchCommits()
@@ -135,7 +137,7 @@ export default function AdminPage() {
     </div>
   )
 
-  if (user?.role !== 'owner') return null
+  if (!ADMIN_EMAILS.includes(user?.email) && user?.role !== 'owner') return null
 
   const progress       = project?.current_phase_progress ?? 65
   const tools          = health?.tools || {}
@@ -196,7 +198,7 @@ export default function AdminPage() {
             <div key={p.num} style={{ flex: 1, padding: '10px 12px', background: 'var(--elevated)', border: `1px solid ${p.status === 'complete' ? 'rgba(0,229,160,0.3)' : p.status === 'active' ? 'rgba(59,130,246,0.3)' : 'var(--border)'}`, borderRadius: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <div style={{ width: 16, height: 16, borderRadius: '50%', background: p.status === 'complete' ? 'var(--accent)' : p.status === 'active' ? '#3B82F6' : 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: 'var(--bg)', fontWeight: 700, flexShrink: 0 }}>
-                  {p.status === 'complete' ? '✓' : p.num}
+                  {p.status === 'complete' ? '✔' : p.num}
                 </div>
                 <span style={{ fontSize: 10, fontWeight: 600, color: p.status === 'complete' ? 'var(--accent)' : p.status === 'active' ? '#3B82F6' : 'var(--text-muted)' }}>P{p.num}</span>
               </div>
@@ -210,7 +212,7 @@ export default function AdminPage() {
       {/* Done vs Pending */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', marginBottom: 14 }}>✓ Done ({DONE_ITEMS.length})</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', marginBottom: 14 }}>✔ Done ({DONE_ITEMS.length})</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {DONE_ITEMS.map((item, i) => (
               <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
@@ -273,7 +275,7 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {/* ── SESSION HISTORY ── */}
+      {/* SESSION HISTORY */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -286,7 +288,6 @@ export default function AdminPage() {
             ↻ Refresh
           </button>
         </div>
-
         {sessions.length === 0 ? (
           <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
             No sessions logged yet. Sessions are created automatically when scans run.
@@ -389,7 +390,7 @@ export default function AdminPage() {
             {sonar.dashboard_url && (
               <a href={sonar.dashboard_url} target="_blank" rel="noreferrer"
                 style={{ display: 'block', marginTop: 12, fontSize: 11, color: '#3B82F6', textDecoration: 'none' }}>
-                → SonarCloud Dashboard ↗
+                ↗ SonarCloud Dashboard ↗
               </a>
             )}
           </div>
