@@ -75,5 +75,23 @@
     "Ansible \u2014 VM config when dedicated VM provisioned",
     "Landing page \u2014 ashtech.io with demo video + waitlist",
     "YC W2027 application \u2014 after first paying customer"
+  ],
+  "backlog": [
+    "Repo detail page \u2014 full scan history, trend charts, finding timeline",
+    "Live event feed \u2014 findings dropping in real time as scan runs",
+    "Budget charts \u2014 GCP cloud spend visible on dashboard",
+    "PDF export \u2014 one click professional format",
+    "Mobile responsive \u2014 full functionality on phone",
+    "SonarQube quality gates \u2014 coverage, duplication configurable per repo",
+    "Dismissal workflow for false positives",
+    "Secrets entropy analysis \u2014 detect high-entropy strings",
+    "Infrastructure drift detection \u2014 alert when manual changes bypass Terraform",
+    "Dependency graph analysis \u2014 software supply chain visibility",
+    "Container runtime security \u2014 detect anomalies in running containers",
+    "Zero-day feed integration \u2014 auto-scan when new CVEs published",
+    "Weekly security report emailed automatically",
+    "Risk score per project \u2014 trending up or down with full history",
+    "Executive summary \u2014 plain English, no jargon",
+    "Full audit logs \u2014 exportable, searchable"
   ]
 }

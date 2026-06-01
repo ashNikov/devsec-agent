@@ -69,6 +69,25 @@ const PENDING_ITEMS = [
   'YC W2027 application — after first paying customer',
 ]
 
+const BACKLOG_ITEMS = [
+  'Repo detail page — full scan history, trend charts, finding timeline',
+  'Live event feed — findings dropping in real time as scan runs',
+  'Budget charts — GCP cloud spend visible on dashboard',
+  'PDF export — one click professional format',
+  'Mobile responsive — full functionality on phone',
+  'SonarQube quality gates — coverage, duplication configurable per repo',
+  'Dismissal workflow for false positives',
+  'Secrets entropy analysis — detect high-entropy strings',
+  'Infrastructure drift detection — alert when manual changes bypass Terraform',
+  'Dependency graph analysis — software supply chain visibility',
+  'Container runtime security — detect anomalies in running containers',
+  'Zero-day feed integration — auto-scan when new CVEs published',
+  'Weekly security report emailed automatically',
+  'Risk score per project — trending up or down with full history',
+  'Executive summary — plain English, no jargon',
+  'Full audit logs — exportable, searchable',
+]
+
 function timeAgo(dateStr: string) {
   if (!dateStr) return '—'
   const diff = Math.round((Date.now() - new Date(dateStr).getTime()) / 1000)
@@ -247,6 +266,19 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Backlog */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#8B95A8', marginBottom: 14 }}>📋 Backlog ({BACKLOG_ITEMS.length})</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {BACKLOG_ITEMS.map((item, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#4A5568', flexShrink: 0, marginTop: 5 }} />
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>{item}</span>
+            </div>
+          ))}
         </div>
       </div>
 
