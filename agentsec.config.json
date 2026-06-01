@@ -4,9 +4,9 @@
   "phase": "Phase 4 \u2014 IN PROGRESS",
   "current_phase": 4,
   "current_phase_name": "Multi-agent Brain + Intelligence Layer",
-  "current_phase_progress": 99,
-  "last_commit": "psycopg2",
-  "updated_at": "2026-05-31",
+  "current_phase_progress": 100,
+  "last_commit": "github-oauth-complete",
+  "updated_at": "2026-06-01",
   "next_phase": "Phase 5 \u2014 Production + YC W2027 Launch",
   "stack": {
     "backend": "FastAPI + PostgreSQL + SQLAlchemy + Alembic",
@@ -56,11 +56,15 @@
     "All 5 scanners ACTIVE on staging \u2014 Gitleaks, Trivy, GitHub, GCP, SonarCloud",
     "GCP Cloud Run env vars configured \u2014 GITHUB_TOKEN, SONARCLOUD_TOKEN, GCP_PROJECT_ID",
     "Scanner status checks use env vars instead of CLI commands",
-    "Cloud SQL PostgreSQL migration \u2014 persistent DB survives all deploys"
+    "Cloud SQL PostgreSQL migration \u2014 persistent DB survives all deploys",
+    "GitHub OAuth \u2014 creates user+org in DB, auto-populates repos",
+    "Repo filter \u2014 only owner repos shown (type=owner)",
+    "Admin panel \u2014 restricted to allowed emails list",
+    "sync_repos \u2014 no fallback to env GITHUB_TOKEN",
+    "All 5 scanners ACTIVE on staging",
+    "Vercel connected to GitHub \u2014 auto-deploys on push"
   ],
   "pending": [
-    "Billing org lookup bug \u2014 /billing/initialize returns org not found on staging",
-    "GitHub OAuth login button \u2014 wire frontend login/page.tsx to /auth/login",
-    "Password eye icon on register page \u2014 verify on staging"
+    "Billing org lookup bug \u2014 /billing/initialize returns org not found on staging"
   ]
 }
