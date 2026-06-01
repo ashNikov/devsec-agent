@@ -37,7 +37,7 @@ export default function ReposPage() {
       .catch(() => setRepos([]))
       .finally(() => setLoading(false))
     reposApi.sync()
-      .then(data => { if (data?.repos) setRepos(data.repos) })
+      .then(data => { if (data?.repos && data.repos.length > 0) setRepos(data.repos) })
       .catch(() => {})
   }, [])
 
@@ -47,7 +47,6 @@ export default function ReposPage() {
       const name = r.name || r.repo_name
       if (!name) return
       request(`/history/trends/${encodeURIComponent(name)}`)
-        
         .then(data => setTrends(prev => ({ ...prev, [name]: data })))
         .catch(() => {})
     })
@@ -72,7 +71,6 @@ export default function ReposPage() {
       const result = await reposApi.scanRepo(repoName)
       setScanResults(prev => ({ ...prev, [repoName]: result }))
       request(`/history/trends/${encodeURIComponent(repoName)}`)
-        
         .then(data => setTrends(prev => ({ ...prev, [repoName]: data })))
         .catch(() => {})
     } catch (e: any) {
@@ -100,7 +98,7 @@ export default function ReposPage() {
   const normalised = repos.map(r => ({
     id:       r.id,
     name:     r.name || r.repo_name,
-    fullName: r.full_name || r.repo_name || `ashNikov/${r.name}`,
+    fullName: r.full_name || r.repo_name,
     branch:   r.default_branch || 'main',
     language: r.language || 'Unknown',
     private:  r.private ?? false,
@@ -111,7 +109,7 @@ export default function ReposPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-          {loading ? 'Loading…' : `${normalised.length} repositories · ashNikov`}
+          {loading ? 'Loading…' : `${normalised.length} repositories`}
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={handleScanAll} disabled={scanningAll}
@@ -150,7 +148,7 @@ export default function ReposPage() {
               </div>
               <div>
                 <label style={{ display: 'block', color: 'var(--text-sec)', fontSize: 11, fontWeight: 600, letterSpacing: '0.4px', marginBottom: 5 }}>GITHUB URL (optional)</label>
-                <input type="text" value={connectUrl} onChange={e => setConnectUrl(e.target.value)} placeholder="https://github.com/ashNikov/my-repo"
+                <input type="text" value={connectUrl} onChange={e => setConnectUrl(e.target.value)} placeholder="https://github.com/username/my-repo"
                   style={{ width: '100%', padding: '9px 12px', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const }} />
               </div>
             </div>
