@@ -422,7 +422,8 @@ async def _auto_provision_repos(github_token: str, org_id: int, plan: str):
             added = 0
             for repo in repos:
                 name = repo.get("full_name") or repo.get("name", "")
-                if not name or name in existing:
+                owner = repo.get("owner", {}).get("login", "")
+                if not name or name in existing or (owner and "/" in name and not name.startswith(owner + "/")):
                     continue
                 if added + len(existing) >= MAX_REPOS:
                     break
