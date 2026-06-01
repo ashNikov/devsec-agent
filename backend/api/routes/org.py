@@ -14,7 +14,7 @@ from auth.jwt_handler import verify_access_token
 router = APIRouter(prefix="/org", tags=["org"])
 
 
-# ── HELPERS ──────────────────────────────────────────────
+# ── HELPERS ──────────────────────────────────────────────────────────────────
 
 def get_current_user(request: Request) -> dict:
     auth_header = request.headers.get("Authorization")
@@ -31,7 +31,7 @@ def require_owner(user: dict):
         raise HTTPException(status_code=403, detail="Owner or admin required")
 
 
-# ── SCHEMAS ───────────────────────────────────────────────
+# ── SCHEMAS ───────────────────────────────────────────────────────────────────
 
 class InviteRequest(BaseModel):
     email: str
@@ -44,7 +44,7 @@ class CreateApiKeyRequest(BaseModel):
     name: str
 
 
-# ── ENDPOINTS ─────────────────────────────────────────────
+# ── ENDPOINTS ─────────────────────────────────────────────────────────────────
 
 @router.get("/me")
 def org_me(request: Request, user: dict = Depends(get_current_user)):
@@ -111,7 +111,6 @@ def invite_member(request: Request, body: InviteRequest, user: dict = Depends(ge
         org_id = user.get("org_id")
         org = db.query(Organization).filter(Organization.id == org_id).first()
 
-        # Free plan — max 3 members
         if org and org.plan == "free":
             count = db.query(OrganizationMember).filter(
                 OrganizationMember.org_id == org_id
@@ -205,7 +204,6 @@ def add_repo(request: Request, body: AddRepoRequest, user: dict = Depends(get_cu
         db.close()
 
 
-
 @router.post("/repos/sync")
 async def sync_repos(request: Request, user: dict = Depends(get_current_user)):
     """Sync repos from GitHub into DB. Adds new, deactivates deleted."""
@@ -217,7 +215,7 @@ async def sync_repos(request: Request, user: dict = Depends(get_current_user)):
         plan = org.plan if org else "free"
         MAX_REPOS = 1 if plan == "free" else 999
 
-        # Get GitHub token from Integration table
+        # Get GitHub token from Integration table only — no fallback to env var
         from db.models import Integration
         intg = db.query(Integration).filter(
             Integration.org_id == org_id,
@@ -226,18 +224,15 @@ async def sync_repos(request: Request, user: dict = Depends(get_current_user)):
         ).first()
 
         if not intg:
-            import os
-            github_token = os.getenv("GITHUB_TOKEN", "")
-        else:
-            github_token = intg.access_token_encrypted
-
+            return {"repos": [], "added": 0, "message": "GitHub not connected — connect via Settings"}
+        github_token = intg.access_token_encrypted
         if not github_token:
-            raise HTTPException(status_code=400, detail="GitHub not connected")
+            return {"repos": [], "added": 0, "message": "GitHub not connected — connect via Settings"}
 
-        # Fetch repos from GitHub
+        # Fetch only repos owned by this user
         async with httpx.AsyncClient() as client:
             resp = await client.get(
-                "https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner",
+                "https://api.github.com/user/repos?per_page=100&sort=updated&type=owner",
                 headers={"Authorization": f"Bearer {github_token}", "Accept": "application/vnd.github.v3+json"},
                 timeout=10,
             )
@@ -256,7 +251,6 @@ async def sync_repos(request: Request, user: dict = Depends(get_current_user)):
         # Add new repos
         for name, repo_data in github_repos.items():
             if name in db_repo_names:
-                # Reactivate if it was deactivated
                 if not db_repo_names[name].is_active:
                     db_repo_names[name].is_active = True
                     added += 1
@@ -288,7 +282,6 @@ async def sync_repos(request: Request, user: dict = Depends(get_current_user)):
         ))
         db.commit()
 
-        # Return updated list
         repos = db.query(UserRepo).filter(
             UserRepo.org_id == org_id,
             UserRepo.is_active == True
@@ -302,6 +295,7 @@ async def sync_repos(request: Request, user: dict = Depends(get_current_user)):
         }
     finally:
         db.close()
+
 
 @router.post("/api-keys")
 def create_api_key(request: Request, body: CreateApiKeyRequest, user: dict = Depends(get_current_user)):
@@ -354,9 +348,8 @@ def audit_logs(request: Request, user: dict = Depends(get_current_user)):
     finally:
         db.close()
 
-# ── EMAIL INVITE OVERRIDE ─────────────────────────────────
-# This overrides the invite endpoint above to send real emails
-from fastapi import APIRouter as _AR
+
+# ── EMAIL INVITE ──────────────────────────────────────────────────────────────
 import resend as _resend
 
 @router.post("/invite/send")
@@ -396,11 +389,10 @@ def invite_member_with_email(request: Request, body: InviteRequest, user: dict =
         ))
         db.commit()
 
-        # Send email via Resend
         _resend.api_key = os.getenv("RESEND_API_KEY", "")
         invited_by = user.get("sub", "your team")
         org_name = org.name if org else "AgentSec"
-        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        frontend_url = os.getenv("FRONTEND_URL", "https://frontend-alpha-nine-71.vercel.app")
         accept_url = f"{frontend_url}/accept-invite?token={token}"
         email_sent = False
 
@@ -433,6 +425,7 @@ def invite_member_with_email(request: Request, body: InviteRequest, user: dict =
     finally:
         db.close()
 
+
 @router.delete("/workspace")
 def delete_workspace(request: Request, user: dict = Depends(get_current_user)):
     """Permanently delete org, all members, repos, findings. Owner only."""
@@ -443,7 +436,6 @@ def delete_workspace(request: Request, user: dict = Depends(get_current_user)):
         if not org_id:
             raise HTTPException(status_code=404, detail="No org found")
 
-        # Delete in order to respect foreign keys
         db.query(AuditLog).filter(AuditLog.org_id == org_id).delete()
         db.query(Invitation).filter(Invitation.org_id == org_id).delete()
         db.query(OrganizationMember).filter(OrganizationMember.org_id == org_id).delete()
@@ -456,6 +448,7 @@ def delete_workspace(request: Request, user: dict = Depends(get_current_user)):
     finally:
         db.close()
 
+
 @router.delete("/members/{user_id}")
 def remove_member(user_id: int, request: Request, user: dict = Depends(get_current_user)):
     """Remove a member from the org. Owner only."""
@@ -463,7 +456,6 @@ def remove_member(user_id: int, request: Request, user: dict = Depends(get_curre
     db = SessionLocal()
     try:
         org_id = user.get("org_id")
-        # Can't remove yourself
         current_user = db.query(User).filter(User.email == user.get("sub")).first()
         if current_user and current_user.id == user_id:
             raise HTTPException(status_code=400, detail="Cannot remove yourself")
@@ -485,3 +477,44 @@ def remove_member(user_id: int, request: Request, user: dict = Depends(get_curre
         return {"status": "removed", "user_id": user_id}
     finally:
         db.close()
+
+
+@router.get("/integrations/status")
+def integrations_status(request: Request, user: dict = Depends(get_current_user)):
+    """Return real integration status based on env vars."""
+    def is_set(key: str) -> bool:
+        val = os.getenv(key, "").strip()
+        return bool(val) and val not in ("", "your_key_here", "changeme", "xxx")
+
+    return [
+        {
+            "name": "GitHub",
+            "desc": f"Repository scanning · {'OAuth connected' if is_set('GITHUB_TOKEN') else 'Token missing'}",
+            "status": "connected" if is_set("GITHUB_TOKEN") else "disconnected",
+        },
+        {
+            "name": "GCP",
+            "desc": f"agent-sec-496307 · {'Cloud Run deployed' if is_set('GOOGLE_APPLICATION_CREDENTIALS') or is_set('GCP_PROJECT_ID') else 'Credentials missing'}",
+            "status": "connected" if (is_set("GOOGLE_APPLICATION_CREDENTIALS") or is_set("GCP_PROJECT_ID")) else "disconnected",
+        },
+        {
+            "name": "Supabase",
+            "desc": f"Database · {'Connection string configured' if is_set('SUPABASE_URL') or is_set('DATABASE_URL') else 'Not configured'}",
+            "status": "connected" if (is_set("SUPABASE_URL") or is_set("DATABASE_URL") or is_set("AGENTSEC_DB_URL")) else "disconnected",
+        },
+        {
+            "name": "Paystack",
+            "desc": f"Payments · {'API key configured' if is_set('PAYSTACK_SECRET_KEY') else 'API key pending'}",
+            "status": "connected" if is_set("PAYSTACK_SECRET_KEY") else "pending",
+        },
+        {
+            "name": "Slack",
+            "desc": f"Notifications · {'Webhook active' if is_set('SLACK_WEBHOOK_URL') else 'Not connected'}",
+            "status": "connected" if is_set("SLACK_WEBHOOK_URL") else "disconnected",
+        },
+        {
+            "name": "ngrok",
+            "desc": f"Tunneling · {'Auth token configured' if is_set('NGROK_AUTH_TOKEN') else 'Not configured'}",
+            "status": "connected" if is_set("NGROK_AUTH_TOKEN") else "disconnected",
+        },
+    ]
