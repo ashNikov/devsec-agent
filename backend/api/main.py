@@ -827,7 +827,7 @@ async def github_connect(request: Request, token: str = None):
     github_auth_url = (
         f"https://github.com/login/oauth/authorize"
         f"?client_id={GITHUB_CLIENT_ID}"
-        f"&redirect_uri=http://localhost:8000/auth/github-connect/callback"
+        f"&redirect_uri={OAUTH_REDIRECT_URI.replace("/auth/callback", "/auth/github-connect/callback")}"
         f"&scope=repo,read:user"
         f"&state={urllib.parse.quote(state)}"
     )
@@ -847,7 +847,7 @@ async def github_connect_callback(code: str, state: str, request: Request):
                 "client_id":     GITHUB_CLIENT_ID,
                 "client_secret": GITHUB_CLIENT_SECRET,
                 "code":          code,
-                "redirect_uri":  "http://localhost:8000/auth/github-connect/callback",
+                "redirect_uri":  OAUTH_REDIRECT_URI.replace("/auth/callback", "/auth/github-connect/callback"),
             },
             headers={"Accept": "application/json"},
         )
