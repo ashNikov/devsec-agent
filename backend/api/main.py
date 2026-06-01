@@ -486,12 +486,77 @@ async def auth_callback(code: str, request: Request):
         )
         user_data = user_response.json()
 
+    # Create or fetch user + org in DB
+    from db.models import SessionLocal as _SL, User as _User, Organization as _Org, OrganizationMember as _OM
+    from auth.jwt_handler import create_access_token as _cat
+    import re as _re
+    github_id = str(user_data.get("id", ""))
+    github_email = user_data.get("email") or f"{user_data.get('login')}@github.local"
+    github_login = user_data.get("login", "")
+    org_id = None
+    role = "member"
+    plan = "free"
+    db = _SL()
+    try:
+
+        # Find existing user by github_id or email
+        user_obj = db.query(_User).filter(
+            (_User.github_id == github_id) | (_User.email == github_email)
+        ).first()
+
+        if not user_obj:
+            # Create new user
+            user_obj = _User(
+                email=github_email,
+                github_id=github_id,
+                email_verified=True,
+                is_active=True,
+            )
+            db.add(user_obj)
+            db.flush()
+
+            # Create org
+            slug_base = _re.sub(r'[^a-z0-9]+', '-', github_login.lower()).strip('-')
+            slug = f"{slug_base}-{user_obj.id}"
+            plan = "pro" if github_email == os.getenv("OWNER_EMAIL", "") else "free"
+            org = _Org(
+                name=github_login,
+                slug=slug,
+                plan=plan,
+            )
+            db.add(org)
+            db.flush()
+
+            # Make owner
+            db.add(_OM(org_id=org.id, user_id=user_obj.id, role="owner"))
+            db.commit()
+            org_id = org.id
+            role = "owner"
+        else:
+            # Existing user — get their org
+            user_obj.github_id = github_id
+            db.commit()
+            membership = db.query(_OM).filter(_OM.user_id == user_obj.id).first()
+            org_id = membership.org_id if membership else None
+            role = membership.role if membership else "member"
+            org = db.query(_Org).filter(_Org.id == org_id).first()
+            plan = org.plan if org else "free"
+
+        # Auto-populate repos
+        await _auto_provision_repos(github_token, org_id, plan)
+
+    finally:
+        db.close()
+
     # Mint a short-expiry JWT (30 min) instead of passing raw GitHub token
     jwt_token = create_access_token(data={
         "sub":        user_data.get("login"),
         "name":       user_data.get("name"),
         "avatar_url": user_data.get("avatar_url"),
-        "email":      user_data.get("email"),
+        "email":      github_email,
+        "org_id":     org_id,
+        "role":       role,
+        "plan":       plan,
     })
 
     return RedirectResponse(
