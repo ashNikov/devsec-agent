@@ -10,9 +10,9 @@ const ADMIN_EMAILS = ['s.uwemudo@gmail.com', 'victoriaakpa8@gmail.com', 'ashniov
 const PHASES = [
   { num: 1, name: 'Core Scanner + GitHub OAuth',          status: 'complete', date: 'Apr 2026' },
   { num: 2, name: 'JWT Auth + Rate Limiting + Dashboard', status: 'complete', date: 'May 21 2026' },
-  { num: 3, name: 'SaaS Foundation + Full UI',            status: 'complete', date: 'May 28 2026' },
-  { num: 4, name: 'Multi-agent Brain + Intelligence',     status: 'active',   date: '—' },
-  { num: 5, name: 'Production + YC W2027 Launch',         status: 'pending',  date: '—' },
+  { num: 3, name: 'SaaS Foundation + Full UI',            status: 'complete', date: 'May 31 2026' },
+  { num: 4, name: 'Multi-agent Brain + Intelligence',     status: 'complete', date: 'Jun 01 2026' },
+  { num: 5, name: 'Production + YC W2027 Launch',         status: 'active',   date: '—' },
 ]
 
 const DONE_ITEMS = [
@@ -33,25 +33,40 @@ const DONE_ITEMS = [
   'Team invite — real email via Resend',
   'CORS fix + DB migrations',
   'Collapsible sidebar with hamburger',
-  'Syne + DM Sans fonts via next/font',
   'Delete workspace — confirmation modal + backend',
   'Remove member — DELETE endpoint + confirmation',
   'GitHub OAuth connect flow — tested and working',
-  '"Phase: undefined" bug — fixed by UI rebuild',
   'JWT 30-day persistent login',
-  'Session Logger — sessions.json + 3 endpoints + Admin panel',
+  'Session Logger — 3 endpoints + Admin panel',
   'Cloud Run staging — backend live at agentsec-staging URL',
   'CI/CD hardening — auto-deploy to Cloud Run on every push',
-  'Auto-provisioning — repos sync from GitHub to DB on connect',
   'Multi-agent brain — Haiku + Sonnet + Python judge (live on dashboard)',
   'Frontend Vercel deploy — public staging URL',
+  'Agent memory — scan history DB + per-repo patterns',
+  'Scan history page + repo trend badges',
+  'Sentry error tracking',
+  'Structured Python logging',
+  'Paystack webhook configured + plan code confirmed',
+  'Cloud SQL PostgreSQL — persistent DB survives all deploys',
+  'Alembic migrations — 17 tables version controlled',
+  'All 5 scanners ACTIVE on staging',
+  'GCP Cloud Run env vars — GITHUB_TOKEN, SONARCLOUD_TOKEN, GCP_PROJECT_ID',
+  'GitHub OAuth signup — creates user+org+repos in DB automatically',
+  'Repo filter — type=owner, only user repos shown',
+  'Admin panel — restricted to allowed emails list',
+  'sync_repos — no fallback to env GITHUB_TOKEN',
+  'Vercel connected to GitHub — auto-deploys on push',
+  'agentsec.config.json baked into Docker image',
+  'Owner email auto-assigns pro plan on registration',
 ]
 
 const PENDING_ITEMS = [
-  'parts-unlimited scan error (investigate in Phase 4)',
-  'Agent memory — scan history DB, per-repo patterns',
-  'Monitoring — Cloud Logging, Sentry, alerting',
-  'Paystack full setup — webhook + real payment test',
+  'Billing org lookup bug — /billing/initialize returns org not found on staging',
+  'GitHub webhook — live repo sync without logout/login',
+  'ashtech.io domain — fix Chrome dangerous site flag',
+  'Ansible — VM config when dedicated VM provisioned',
+  'Landing page — ashtech.io with demo video + waitlist',
+  'YC W2027 application — after first paying customer',
 ]
 
 function timeAgo(dateStr: string) {
@@ -139,7 +154,7 @@ export default function AdminPage() {
 
   if (!ADMIN_EMAILS.includes(user?.email) && user?.role !== 'owner') return null
 
-  const progress       = project?.current_phase_progress ?? 65
+  const progress       = project?.current_phase_progress ?? 5
   const tools          = health?.tools || {}
   const sonar          = health?.sonarcloud || {}
   const sonarStatus    = sonar.status || 'unknown'
