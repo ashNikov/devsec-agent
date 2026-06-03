@@ -28,8 +28,8 @@ export function TopBar() {
       ? user.sub.slice(0, 2).toUpperCase()
       : 'UU'
 
-  const displayName = user?.name || user?.login || user?.sub || 'Loading…'
-  const displayRole = user?.role || 'member'
+  const displayName = user?.name || user?.login || user?.sub || user?.email?.split('@')[0] || 'User'
+  const displayRole = user?.role || 'owner'
 
   return (
     <div style={{
