@@ -178,7 +178,7 @@ export default function AdminPage() {
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px' }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', marginBottom: 14 }}>✔ Done ({DONE_ITEMS.length})</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {DONE_ITEMS.map((item, i) => (
+            {DONE_ITEMS.map((item: string, i: number) => (
               <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                 <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0, marginTop: 5 }} />
                 <span style={{ fontSize: 12, color: 'var(--text-sec)', lineHeight: 1.4 }}>{item}</span>
@@ -189,7 +189,7 @@ export default function AdminPage() {
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px' }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#FFB340', marginBottom: 14 }}>⏳ Pending ({PENDING_ITEMS.length})</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {PENDING_ITEMS.map((item, i) => (
+            {PENDING_ITEMS.map((item: string, i: number) => (
               <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                 <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#FFB340', flexShrink: 0, marginTop: 5 }} />
                 <span style={{ fontSize: 12, color: 'var(--text-sec)', lineHeight: 1.4 }}>{item}</span>
@@ -203,7 +203,7 @@ export default function AdminPage() {
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#8B95A8', marginBottom: 14 }}>📋 Backlog ({BACKLOG_ITEMS.length})</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          {BACKLOG_ITEMS.map((item, i) => (
+          {BACKLOG_ITEMS.map((item: string, i: number) => (
             <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
               <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#4A5568', flexShrink: 0, marginTop: 5 }} />
               <span style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>{item}</span>
