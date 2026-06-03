@@ -497,7 +497,7 @@ def auth_login():
         f"https://github.com/login/oauth/authorize"
         f"?client_id={GITHUB_CLIENT_ID}"
         f"&redirect_uri={OAUTH_REDIRECT_URI}"
-        f"&scope=repo,user,read:org"
+        f"&scope=repo,user,user:email,read:org"
     )
     return RedirectResponse(url=github_auth_url)
 
@@ -539,7 +539,22 @@ async def auth_callback(code: str, request: Request):
     from auth.jwt_handler import create_access_token as _cat
     import re as _re
     github_id = str(user_data.get("id", ""))
-    github_email = user_data.get("email") or f"{user_data.get('login')}@github.local"
+    # Try primary email first, then fetch from emails API if private
+    github_email = user_data.get("email")
+    if not github_email:
+        async with httpx.AsyncClient() as client:
+            emails_resp = await client.get(
+                "https://api.github.com/user/emails",
+                headers={
+                    "Authorization": f"Bearer {github_token}",
+                    "Accept": "application/vnd.github.v3+json",
+                },
+            )
+            if emails_resp.status_code == 200:
+                emails = emails_resp.json()
+                primary = next((e["email"] for e in emails if e.get("primary") and e.get("verified")), None)
+                github_email = primary or next((e["email"] for e in emails), None)
+    github_email = github_email or f"{user_data.get('login')}@github.local"
     github_login = user_data.get("login", "")
     org_id = None
     role = "member"
