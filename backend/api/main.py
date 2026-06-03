@@ -441,6 +441,53 @@ async def _auto_provision_repos(github_token: str, org_id: int, plan: str):
     except Exception:
         pass
 
+
+async def _register_github_webhook(github_token: str, github_login: str):
+    """Register AgentSec webhook on the user's GitHub account — fires on OAuth connect."""
+    import httpx as _httpx
+    webhook_secret = os.getenv("GITHUB_WEBHOOK_SECRET", "")
+    webhook_url = os.getenv(
+        "BACKEND_URL",
+        "https://agentsec-staging-468774339170.us-central1.run.app"
+    ) + "/github/webhook"
+    try:
+        async with _httpx.AsyncClient() as client:
+            # Check if webhook already exists
+            resp = await client.get(
+                f"https://api.github.com/user/hooks",
+                headers={"Authorization": f"Bearer {github_token}", "Accept": "application/vnd.github.v3+json"},
+                timeout=10,
+            )
+            existing = resp.json() if resp.status_code == 200 else []
+            if isinstance(existing, list):
+                for hook in existing:
+                    if hook.get("config", {}).get("url", "") == webhook_url:
+                        logger.info(f"Webhook already exists for {github_login}")
+                        return
+            # Register new webhook
+            r = await client.post(
+                "https://api.github.com/user/hooks",
+                headers={"Authorization": f"Bearer {github_token}", "Accept": "application/vnd.github.v3+json"},
+                json={
+                    "name":   "web",
+                    "active": True,
+                    "events": ["*"],
+                    "config": {
+                        "url":          webhook_url,
+                        "content_type": "json",
+                        "secret":       webhook_secret,
+                        "insecure_ssl": "0",
+                    }
+                },
+                timeout=10,
+            )
+            if r.status_code == 201:
+                logger.info(f"Webhook registered for {github_login}")
+            else:
+                logger.warning(f"Webhook registration failed for {github_login}: {r.status_code} {r.text}")
+    except Exception as e:
+        logger.error(f"Webhook registration error for {github_login}: {e}")
+
 # ── GITHUB OAUTH ENDPOINTS ────────────────────────────────
 @app.get("/auth/login")
 def auth_login():
@@ -545,6 +592,7 @@ async def auth_callback(code: str, request: Request):
 
         # Auto-populate repos
         await _auto_provision_repos(github_token, org_id, plan)
+        await _register_github_webhook(github_token, github_login)
 
     finally:
         db.close()
@@ -979,6 +1027,7 @@ async def github_connect_callback(code: str, state: str, request: Request):
         org_obj = db.query(_OrgModel).filter(_OrgModel.id == org_id).first()
         plan = org_obj.plan if org_obj else "free"
         await _auto_provision_repos(github_token, org_id, plan)
+        await _register_github_webhook(github_token, github_user.get("login", ""))
 
         login = github_user.get('login', '')
         return RedirectResponse(url=f"{FRONTEND_URL}/settings?github=connected&login={login}")
