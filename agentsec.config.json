@@ -4,8 +4,8 @@
   "phase": "Phase 5 — IN PROGRESS",
   "current_phase": 5,
   "current_phase_name": "Production + YC W2027 Launch",
-  "current_phase_progress": 5,
-  "last_commit": "phase4-complete",
+  "current_phase_progress": 30,
+  "last_commit": "b64f398",
   "updated_at": "2026-06-01",
   "next_phase": "Phase 5 — Production + YC W2027 Launch",
   "stack": {
