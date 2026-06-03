@@ -23,7 +23,7 @@
     "pro": "unlimited repos, auto-remediation, scan history, multi-agent brain"
   },
   "staging_url": "https://agentsec-staging-468774339170.us-central1.run.app",
-  "frontend_url": "https://frontend-alpha-nine-71.vercel.app",
+  "frontend_url": "https://www.ashtech.app",
   "done": [
     "JWT auth + rate limiting",
     "SaaS org/user/billing DB models",
@@ -67,10 +67,10 @@
     "Vercel connected to GitHub — auto-deploys on push",
     "agentsec.config.json baked into Docker image",
     "Owner email auto-assigns pro plan on registration",
-    "GitHub webhook — live repo sync for all orgs without logout/login"
+    "GitHub webhook + background repo sync every 2mins — auto-sync for all orgs",
+    "ashtech.app domain — Chrome dangerous site flag eliminated, custom domain live"
   ],
   "pending": [
-    "ashtech.io domain — fix Chrome dangerous site flag",
     "Ansible — VM config when dedicated VM provisioned",
     "Landing page — ashtech.io with demo video + waitlist",
     "YC W2027 application — after first paying customer"
