@@ -1,99 +1,106 @@
 import os
 import requests
+import base64
 from dotenv import load_dotenv
 
 load_dotenv()
 
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-GITHUB_USER  = "ashNikov"
-HEADERS = {
-    "Authorization": f"Bearer {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github.v3+json"
-}
+# ── HELPERS ──────────────────────────────────────────────
 
-def check_repo_has_workflow(repo: str) -> bool:
-    """Check if repo has any GitHub Actions workflow files."""
+def _headers(github_token: str) -> dict:
+    return {
+        "Authorization": f"Bearer {github_token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+
+def _get_token_and_user(github_token: str = None, github_user: str = None):
+    """Fall back to env vars only if not provided — for backwards compat."""
+    token = github_token or os.getenv("GITHUB_TOKEN", "")
+    user  = github_user  or os.getenv("GITHUB_USER", "ashNikov")
+    return token, user
+
+
+# ── CHECKS ───────────────────────────────────────────────
+
+def check_repo_has_workflow(repo: str, github_token: str = None, github_user: str = None) -> bool:
+    token, user = _get_token_and_user(github_token, github_user)
     r = requests.get(
-        f"https://api.github.com/repos/{GITHUB_USER}/{repo}/contents/.github/workflows",
-        headers=HEADERS, timeout=10
+        f"https://api.github.com/repos/{user}/{repo}/contents/.github/workflows",
+        headers=_headers(token), timeout=10
     )
-    if r.status_code == 200:
-        files = r.json()
-        return isinstance(files, list) and len(files) > 0
-    return False
+    return r.status_code == 200 and isinstance(r.json(), list) and len(r.json()) > 0
 
-def check_repo_has_gitignore(repo: str) -> bool:
-    """Check if repo has a .gitignore at root."""
+def check_repo_has_gitignore(repo: str, github_token: str = None, github_user: str = None) -> bool:
+    token, user = _get_token_and_user(github_token, github_user)
     r = requests.get(
-        f"https://api.github.com/repos/{GITHUB_USER}/{repo}/contents/.gitignore",
-        headers=HEADERS, timeout=10
-    )
-    return r.status_code == 200
-
-def check_branch_protection(repo: str, branch: str = "main") -> bool:
-    """Check if branch protection is enabled."""
-    r = requests.get(
-        f"https://api.github.com/repos/{GITHUB_USER}/{repo}/branches/{branch}/protection",
-        headers=HEADERS, timeout=10
-    )
-    return r.status_code == 200
-
-def check_repo_has_dockerfile(repo: str) -> bool:
-    """Check if repo has a Dockerfile at root."""
-    r = requests.get(
-        f"https://api.github.com/repos/{GITHUB_USER}/{repo}/contents/Dockerfile",
-        headers=HEADERS, timeout=10
+        f"https://api.github.com/repos/{user}/{repo}/contents/.gitignore",
+        headers=_headers(token), timeout=10
     )
     return r.status_code == 200
 
-def scan_all_repos() -> list:
-    """Scan all repos and return a findings report."""
+def check_branch_protection(repo: str, branch: str = "main", github_token: str = None, github_user: str = None) -> bool:
+    token, user = _get_token_and_user(github_token, github_user)
     r = requests.get(
-        f"https://api.github.com/users/{GITHUB_USER}/repos?per_page=50",
-        headers=HEADERS, timeout=15
+        f"https://api.github.com/repos/{user}/{repo}/branches/{branch}/protection",
+        headers=_headers(token), timeout=10
     )
-    repos = r.json()
+    return r.status_code == 200
+
+def check_repo_has_dockerfile(repo: str, github_token: str = None, github_user: str = None) -> bool:
+    token, user = _get_token_and_user(github_token, github_user)
+    r = requests.get(
+        f"https://api.github.com/repos/{user}/{repo}/contents/Dockerfile",
+        headers=_headers(token), timeout=10
+    )
+    return r.status_code == 200
+
+
+# ── SCAN ─────────────────────────────────────────────────
+
+def scan_all_repos(github_token: str = None, github_user: str = None) -> list:
+    """Scan all repos for the given user and return a findings report."""
+    token, user = _get_token_and_user(github_token, github_user)
+    r = requests.get(
+        f"https://api.github.com/users/{user}/repos?per_page=100&type=owner",
+        headers=_headers(token), timeout=15
+    )
+    repos = r.json() if r.status_code == 200 else []
+    if not isinstance(repos, list):
+        return []
+
     findings = []
-
     for repo in repos:
-        name = repo["name"]
+        name           = repo["name"]
         default_branch = repo.get("default_branch", "main")
-        missing = []
+        missing        = []
 
-        if not check_repo_has_workflow(name):
+        if not check_repo_has_workflow(name, token, user):
             missing.append("CI/CD pipeline")
-        if not check_repo_has_gitignore(name):
+        if not check_repo_has_gitignore(name, token, user):
             missing.append(".gitignore")
-        if not check_branch_protection(name, default_branch):
+        if not check_branch_protection(name, default_branch, token, user):
             missing.append("branch protection")
-        if not check_repo_has_dockerfile(name):
+        if not check_repo_has_dockerfile(name, token, user):
             missing.append("Dockerfile")
 
         findings.append({
-            "repo": name,
+            "repo":           name,
             "default_branch": default_branch,
-            "private": repo["private"],
-            "missing": missing,
-            "score": len(missing),
-            "status": "NEEDS_ATTENTION" if missing else "COMPLIANT"
+            "private":        repo["private"],
+            "missing":        missing,
+            "score":          len(missing),
+            "status":         "NEEDS_ATTENTION" if missing else "COMPLIANT"
         })
 
     findings.sort(key=lambda x: x["score"], reverse=True)
     return findings
 
-if __name__ == "__main__":
-    import json
-    print("Scanning all repos for missing security baseline...\n")
-    results = scan_all_repos()
-    for r in results:
-        status = "⚠️" if r["missing"] else "✅"
-        print(f"{status} {r['repo']}: {', '.join(r['missing']) if r['missing'] else 'all good'}")
 
-import base64
-from datetime import datetime
+# ── PROVISIONERS ─────────────────────────────────────────
 
-def add_cicd_pipeline(repo: str) -> dict:
+def add_cicd_pipeline(repo: str, github_token: str = None, github_user: str = None) -> dict:
     """Push a security CI/CD pipeline to a repo missing one."""
+    token, user = _get_token_and_user(github_token, github_user)
     workflow = """name: Security Pipeline
 
 on:
@@ -131,8 +138,8 @@ jobs:
 """
     content_b64 = base64.b64encode(workflow.encode()).decode()
     r = requests.put(
-        f"https://api.github.com/repos/{GITHUB_USER}/{repo}/contents/.github/workflows/security.yml",
-        headers=HEADERS,
+        f"https://api.github.com/repos/{user}/{repo}/contents/.github/workflows/security.yml",
+        headers=_headers(token),
         json={
             "message": "ci: add AgentSec security pipeline — Gitleaks + Trivy [auto-provisioned]",
             "content": content_b64
@@ -140,21 +147,24 @@ jobs:
         timeout=15
     )
     if r.status_code in (200, 201):
-        return {"status": "success", "repo": repo, "action": "added CI/CD pipeline", "url": r.json().get("content", {}).get("html_url")}
+        return {"status": "success", "repo": repo, "action": "added CI/CD pipeline",
+                "url": r.json().get("content", {}).get("html_url")}
     return {"status": "error", "repo": repo, "error": r.json().get("message", "unknown")}
 
-def add_gitignore(repo: str, language: str = "Python") -> dict:
+
+def add_gitignore(repo: str, language: str = "Python", github_token: str = None, github_user: str = None) -> dict:
     """Push a .gitignore to a repo missing one."""
+    token, user = _get_token_and_user(github_token, github_user)
     templates = {
-        "Python": "__pycache__/\n*.pyc\n*.pyo\n.env\n.venv/\nvenv/\n*.egg-info/\ndist/\nbuild/\n.DS_Store\n*.log\n.pytest_cache/\n",
+        "Python":     "__pycache__/\n*.pyc\n*.pyo\n.env\n.venv/\nvenv/\n*.egg-info/\ndist/\nbuild/\n.DS_Store\n*.log\n.pytest_cache/\n",
         "JavaScript": "node_modules/\n.env\n.next/\ndist/\nbuild/\n*.log\n.DS_Store\ncoverage/\n",
-        "default": ".env\n*.log\n.DS_Store\nbuild/\ndist/\n"
+        "default":    ".env\n*.log\n.DS_Store\nbuild/\ndist/\n"
     }
-    content = templates.get(language, templates["default"])
+    content     = templates.get(language, templates["default"])
     content_b64 = base64.b64encode(content.encode()).decode()
     r = requests.put(
-        f"https://api.github.com/repos/{GITHUB_USER}/{repo}/contents/.gitignore",
-        headers=HEADERS,
+        f"https://api.github.com/repos/{user}/{repo}/contents/.gitignore",
+        headers=_headers(token),
         json={
             "message": "chore: add .gitignore [auto-provisioned by AgentSec]",
             "content": content_b64
@@ -165,21 +175,32 @@ def add_gitignore(repo: str, language: str = "Python") -> dict:
         return {"status": "success", "repo": repo, "action": "added .gitignore"}
     return {"status": "error", "repo": repo, "error": r.json().get("message", "unknown")}
 
-def enforce_branch_protection(repo: str, branch: str = "main") -> dict:
+
+def enforce_branch_protection(repo: str, branch: str = "main", github_token: str = None, github_user: str = None) -> dict:
     """Enable branch protection on the default branch."""
+    token, user = _get_token_and_user(github_token, github_user)
     r = requests.put(
-        f"https://api.github.com/repos/{GITHUB_USER}/{repo}/branches/{branch}/protection",
-        headers={**HEADERS, "Accept": "application/vnd.github.v3+json"},
+        f"https://api.github.com/repos/{user}/{repo}/branches/{branch}/protection",
+        headers=_headers(token),
         json={
-            "required_status_checks": None,
-            "enforce_admins": False,
+            "required_status_checks":        None,
+            "enforce_admins":                False,
             "required_pull_request_reviews": None,
-            "restrictions": None,
-            "allow_force_pushes": False,
-            "allow_deletions": False
+            "restrictions":                  None,
+            "allow_force_pushes":            False,
+            "allow_deletions":               False
         },
         timeout=15
     )
     if r.status_code == 200:
         return {"status": "success", "repo": repo, "action": f"branch protection enabled on {branch}"}
     return {"status": "error", "repo": repo, "error": r.json().get("message", "unknown")}
+
+
+if __name__ == "__main__":
+    import json
+    print("Scanning all repos for missing security baseline...\n")
+    results = scan_all_repos()
+    for r in results:
+        status = "⚠️" if r["missing"] else "✅"
+        print(f"{status} {r['repo']}: {', '.join(r['missing']) if r['missing'] else 'all good'}")
