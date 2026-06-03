@@ -15,79 +15,6 @@ const PHASES = [
   { num: 5, name: 'Production + YC W2027 Launch',         status: 'active',   date: '—' },
 ]
 
-const DONE_ITEMS = [
-  'JWT auth + rate limiting',
-  'SaaS org/user/billing DB models',
-  'Email/password register + login',
-  'Full SaaS UI — all 6 pages + Admin panel',
-  'UI wired to live backend data',
-  '/findings endpoint with 5min cache',
-  'Paystack billing endpoints + plan enforcement',
-  'CI/CD pipeline (Gitleaks + Trivy + SonarCloud)',
-  'GCP Cloud Run deployment',
-  'Connect Repo — saves to DB with plan limits',
-  'Resolve finding — persists to DB',
-  'Settings profile update — live',
-  'Scan Now per repo — GitHub API',
-  'Live integrations status endpoint',
-  'Team invite — real email via Resend',
-  'CORS fix + DB migrations',
-  'Collapsible sidebar with hamburger',
-  'Delete workspace — confirmation modal + backend',
-  'Remove member — DELETE endpoint + confirmation',
-  'GitHub OAuth connect flow — tested and working',
-  'JWT 30-day persistent login',
-  'Session Logger — 3 endpoints + Admin panel',
-  'Cloud Run staging — backend live at agentsec-staging URL',
-  'CI/CD hardening — auto-deploy to Cloud Run on every push',
-  'Multi-agent brain — Haiku + Sonnet + Python judge (live on dashboard)',
-  'Frontend Vercel deploy — public staging URL',
-  'Agent memory — scan history DB + per-repo patterns',
-  'Scan history page + repo trend badges',
-  'Sentry error tracking',
-  'Structured Python logging',
-  'Paystack webhook configured + plan code confirmed',
-  'Cloud SQL PostgreSQL — persistent DB survives all deploys',
-  'Alembic migrations — 17 tables version controlled',
-  'All 5 scanners ACTIVE on staging',
-  'GCP Cloud Run env vars — GITHUB_TOKEN, SONARCLOUD_TOKEN, GCP_PROJECT_ID',
-  'GitHub OAuth signup — creates user+org+repos in DB automatically',
-  'Repo filter — type=owner, only user repos shown',
-  'Admin panel — restricted to allowed emails list',
-  'sync_repos — no fallback to env GITHUB_TOKEN',
-  'Vercel connected to GitHub — auto-deploys on push',
-  'agentsec.config.json baked into Docker image',
-  'Owner email auto-assigns pro plan on registration',
-]
-
-const PENDING_ITEMS = [
-  'Billing org lookup bug — /billing/initialize returns org not found on staging',
-  'GitHub webhook — live repo sync without logout/login',
-  'ashtech.io domain — fix Chrome dangerous site flag',
-  'Ansible — VM config when dedicated VM provisioned',
-  'Landing page — ashtech.io with demo video + waitlist',
-  'YC W2027 application — after first paying customer',
-]
-
-const BACKLOG_ITEMS = [
-  'Repo detail page — full scan history, trend charts, finding timeline',
-  'Live event feed — findings dropping in real time as scan runs',
-  'Budget charts — GCP cloud spend visible on dashboard',
-  'PDF export — one click professional format',
-  'Mobile responsive — full functionality on phone',
-  'SonarQube quality gates — coverage, duplication configurable per repo',
-  'Dismissal workflow for false positives',
-  'Secrets entropy analysis — detect high-entropy strings',
-  'Infrastructure drift detection — alert when manual changes bypass Terraform',
-  'Dependency graph analysis — software supply chain visibility',
-  'Container runtime security — detect anomalies in running containers',
-  'Zero-day feed integration — auto-scan when new CVEs published',
-  'Weekly security report emailed automatically',
-  'Risk score per project — trending up or down with full history',
-  'Executive summary — plain English, no jargon',
-  'Full audit logs — exportable, searchable',
-]
-
 function timeAgo(dateStr: string) {
   if (!dateStr) return '—'
   const diff = Math.round((Date.now() - new Date(dateStr).getTime()) / 1000)
@@ -174,6 +101,9 @@ export default function AdminPage() {
   if (!ADMIN_EMAILS.includes(user?.email) && user?.role !== 'owner') return null
 
   const progress       = project?.current_phase_progress ?? 5
+  const DONE_ITEMS    = project?.done     || []
+  const PENDING_ITEMS = project?.pending  || []
+  const BACKLOG_ITEMS = project?.backlog  || []
   const tools          = health?.tools || {}
   const sonar          = health?.sonarcloud || {}
   const sonarStatus    = sonar.status || 'unknown'
