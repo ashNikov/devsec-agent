@@ -19,6 +19,88 @@ def run_scheduled_scan():
         logger.error(f"[SCHEDULER] Scan failed: {e}")
         return {"status": "error", "error": str(e)}
 
+
+# ── REPO SYNC JOB ────────────────────────────────────────
+def run_repo_sync():
+    """Sync repos for all orgs with active GitHub integrations."""
+    try:
+        import asyncio
+        from db.models import SessionLocal, Integration, Organization, UserRepo
+        logger.info("[REPO SYNC] Starting repo sync for all orgs")
+        import httpx
+
+        db = SessionLocal()
+        try:
+            integrations = db.query(Integration).filter(
+                Integration.provider == "github",
+                Integration.is_active == True,
+            ).all()
+            logger.info(f"[REPO SYNC] Found {len(integrations)} active GitHub integrations")
+
+            for intg in integrations:
+                if not intg.access_token_encrypted:
+                    continue
+                org_id = intg.org_id
+                org = db.query(Organization).filter(Organization.id == org_id).first()
+                plan = org.plan if org else "free"
+                MAX_REPOS = 1 if plan == "free" else 999
+
+                try:
+                    resp = httpx.get(
+                        "https://api.github.com/user/repos?per_page=100&sort=updated&type=owner",
+                        headers={
+                            "Authorization": f"Bearer {intg.access_token_encrypted}",
+                            "Accept": "application/vnd.github.v3+json",
+                        },
+                        timeout=10,
+                    )
+                    if resp.status_code != 200:
+                        logger.warning(f"[REPO SYNC] GitHub API error for org {org_id}: {resp.status_code}")
+                        continue
+
+                    github_repos = {r["full_name"]: r for r in resp.json() if isinstance(r, dict)}
+                    db_repos = db.query(UserRepo).filter(UserRepo.org_id == org_id).all()
+                    db_repo_names = {r.repo_name: r for r in db_repos}
+                    added = 0
+
+                    for name, repo_data in github_repos.items():
+                        if name in db_repo_names:
+                            if not db_repo_names[name].is_active:
+                                db_repo_names[name].is_active = True
+                                added += 1
+                        else:
+                            active_count = sum(1 for r in db_repos if r.is_active)
+                            if active_count >= MAX_REPOS:
+                                break
+                            db.add(UserRepo(
+                                org_id=org_id,
+                                repo_name=name,
+                                repo_url=repo_data.get("html_url", ""),
+                                is_active=True,
+                                is_private=repo_data.get("private", False),
+                            ))
+                            added += 1
+
+                    # Deactivate repos no longer on GitHub
+                    for name, repo in db_repo_names.items():
+                        if name not in github_repos and repo.is_active:
+                            repo.is_active = False
+
+                    if added > 0:
+                        db.commit()
+                        logger.info(f"[REPO SYNC] Org {org_id} — {added} repos added/reactivated")
+
+                except Exception as e:
+                    logger.error(f"[REPO SYNC] Error syncing org {org_id}: {e}")
+                    continue
+
+        finally:
+            db.close()
+
+        logger.info("[REPO SYNC] Complete")
+    except Exception as e:
+        logger.error(f"[REPO SYNC] Job failed: {e}")
+
 # ── SCHEDULER SETUP ──────────────────────────────────────
 _scheduler = BackgroundScheduler()
 
@@ -37,6 +119,14 @@ def start_scheduler():
         name="AgentSec Scheduled Security Scan",
         replace_existing=True,
         max_instances=1,  # Never run two scans simultaneously
+    )
+    _scheduler.add_job(
+        run_repo_sync,
+        trigger=IntervalTrigger(minutes=2),
+        id="repo_sync",
+        name="AgentSec Repo Sync",
+        replace_existing=True,
+        max_instances=1,
     )
     _scheduler.start()
     logger.info(f"[SCHEDULER] Started — scanning every {SCAN_INTERVAL_HOURS} hours")
