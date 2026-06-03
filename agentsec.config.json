@@ -66,10 +66,10 @@
     "sync_repos — no fallback to env GITHUB_TOKEN",
     "Vercel connected to GitHub — auto-deploys on push",
     "agentsec.config.json baked into Docker image",
-    "Owner email auto-assigns pro plan on registration"
+    "Owner email auto-assigns pro plan on registration",
+    "GitHub webhook — live repo sync for all orgs without logout/login"
   ],
   "pending": [
-    "GitHub webhook — live repo sync without logout/login",
     "ashtech.io domain — fix Chrome dangerous site flag",
     "Ansible — VM config when dedicated VM provisioned",
     "Landing page — ashtech.io with demo video + waitlist",
