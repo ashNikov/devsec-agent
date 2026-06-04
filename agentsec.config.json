@@ -4,7 +4,7 @@
   "phase": "Phase 5 — IN PROGRESS",
   "current_phase": 5,
   "current_phase_name": "Production + YC W2027 Launch",
-  "current_phase_progress": 60,
+  "current_phase_progress": 80,
   "last_commit": "HEAD",
   "updated_at": "2026-06-01",
   "next_phase": "Phase 5 — Production + YC W2027 Launch",
@@ -68,11 +68,11 @@
     "agentsec.config.json baked into Docker image",
     "Owner email auto-assigns pro plan on registration",
     "GitHub webhook + background repo sync every 2mins — auto-sync for all orgs",
-    "ashtech.app domain — Chrome dangerous site flag eliminated, custom domain live"
+    "ashtech.app domain — Chrome dangerous site flag eliminated, custom domain live",
+    "Landing page — ashtech.app with hero, how it works, pricing, CTA"
   ],
   "pending": [
     "Ansible — VM config when dedicated VM provisioned",
-    "Landing page — ashtech.io with demo video + waitlist",
     "YC W2027 application — after first paying customer"
   ],
   "backlog": [
