@@ -265,3 +265,95 @@ def accept_invite(body: AcceptInviteRequest):
         }
     finally:
         db.close()
+# ── FORGOT PASSWORD ───────────────────────────────────────────────────────────
+import resend as _resend
+from datetime import timedelta
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+@router.post("/forgot-password")
+def forgot_password(body: ForgotPasswordRequest):
+    """Generate a reset token and send email via Resend."""
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == body.email).first()
+        # Always return 200 — don't reveal if email exists
+        if not user:
+            return {"status": "ok", "message": "If that email exists, a reset link has been sent."}
+
+        # Invalidate any existing unused tokens for this user
+        from db.models import PasswordResetToken
+        db.query(PasswordResetToken).filter(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used == False
+        ).delete()
+
+        token = secrets.token_urlsafe(32)
+        reset = PasswordResetToken(
+            user_id=user.id,
+            token=token,
+            expires_at=datetime.utcnow() + timedelta(hours=1),
+            used=False,
+            created_at=datetime.utcnow(),
+        )
+        db.add(reset)
+        db.commit()
+
+        frontend_url = os.getenv("FRONTEND_URL", "https://www.ashtech.app")
+        reset_url = f"{frontend_url}/reset-password?token={token}"
+
+        _resend.api_key = os.getenv("RESEND_API_KEY", "")
+        if _resend.api_key:
+            try:
+                _resend.Emails.send({
+                    "from": "AgentSec <onboarding@resend.dev>",
+                    "to": [body.email],
+                    "subject": "Reset your AgentSec password",
+                    "html": f"""<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;">
+                        <div style="margin-bottom:24px;"><span style="font-size:22px;font-weight:700;color:#00E5A0;">Agent</span><span style="font-size:22px;font-weight:700;color:#1a1a1a;">Sec</span></div>
+                        <h2 style="font-size:20px;color:#1a1a1a;margin-bottom:8px;">Reset your password</h2>
+                        <p style="color:#555;margin-bottom:24px;">Click the button below to reset your password. This link expires in <strong>1 hour</strong>.</p>
+                        <a href="{reset_url}" style="display:inline-block;background:#00E5A0;color:#07090F;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">Reset Password</a>
+                        <p style="color:#999;font-size:12px;margin-top:24px;">If you didn't request this, ignore this email.</p>
+                        <p style="color:#999;font-size:12px;">Link expires in 1 hour.</p>
+                    </div>"""
+                })
+            except Exception as e:
+                print(f"[EMAIL ERROR] {e}")
+
+        return {"status": "ok", "message": "If that email exists, a reset link has been sent."}
+    finally:
+        db.close()
+
+
+@router.post("/reset-password")
+def reset_password(body: ResetPasswordRequest):
+    """Validate token and update password."""
+    db = SessionLocal()
+    try:
+        from db.models import PasswordResetToken
+        reset = db.query(PasswordResetToken).filter(
+            PasswordResetToken.token == body.token,
+            PasswordResetToken.used == False,
+            PasswordResetToken.expires_at > datetime.utcnow()
+        ).first()
+
+        if not reset:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+
+        user = db.query(User).filter(User.id == reset.user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found.")
+
+        user.hashed_password = bcrypt.hashpw(body.new_password.encode(), bcrypt.gensalt()).decode()
+        reset.used = True
+        db.commit()
+
+        return {"status": "ok", "message": "Password updated successfully."}
+    finally:
+        db.close()
