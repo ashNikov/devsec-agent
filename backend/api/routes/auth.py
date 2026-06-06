@@ -311,7 +311,7 @@ def forgot_password(body: ForgotPasswordRequest):
         if _resend.api_key:
             try:
                 _resend.Emails.send({
-                    "from": "AgentSec <onboarding@resend.dev>",
+                    "from": "AgentSec <noreply@ashtech.app>",
                     "to": [body.email],
                     "subject": "Reset your AgentSec password",
                     "html": f"""<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;">

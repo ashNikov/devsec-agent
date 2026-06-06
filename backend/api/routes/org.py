@@ -399,7 +399,7 @@ def invite_member_with_email(request: Request, body: InviteRequest, user: dict =
         if _resend.api_key:
             try:
                 _resend.Emails.send({
-                    "from": "AgentSec <onboarding@resend.dev>",
+                    "from": "AgentSec <noreply@ashtech.app>",
                     "to": [body.email],
                     "subject": f"You've been invited to {org_name} on AgentSec",
                     "html": f"""<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;">
