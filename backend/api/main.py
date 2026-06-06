@@ -710,9 +710,22 @@ def agent_brain(request: Request, body: BrainRequest = None, user: dict = Depend
         try:
             from db.models import SessionLocal, ScanResult, UserRepo
             db = SessionLocal()
-            recent_scans = db.query(ScanResult).filter(
-                ScanResult.org_id == user["org_id"]
-            ).order_by(ScanResult.scanned_at.desc()).limit(10).all()
+            from db.models import UserRepo
+            # Get org's repos
+            org_repos = db.query(UserRepo).filter(
+                UserRepo.org_id == user["org_id"],
+                UserRepo.is_active == True
+            ).all()
+            org_repo_names = [r.repo_name for r in org_repos]
+            # Get scan results for those repos
+            if org_repo_names:
+                recent_scans = db.query(ScanResult).filter(
+                    ScanResult.repo.in_(org_repo_names)
+                ).order_by(ScanResult.scanned_at.desc()).limit(10).all()
+            else:
+                recent_scans = db.query(ScanResult).order_by(
+                    ScanResult.scanned_at.desc()
+                ).limit(10).all()
             db.close()
             if recent_scans:
                 secrets_total = sum(s.secrets_found or 0 for s in recent_scans)
