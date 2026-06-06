@@ -296,7 +296,7 @@ def scheduler_status(request: Request, user: dict = Depends(get_current_user)):
 @limiter.limit("5/minute")
 def scheduler_trigger(request: Request, user: dict = Depends(get_current_user)):
     """Manually trigger an immediate scan."""
-    return trigger_manual_scan()
+    return trigger_manual_scan(org_id=user.get("org_id"))
 
 # ── REMEDIATION ENDPOINTS ────────────────────────────────
 @app.post("/remediate/iam")

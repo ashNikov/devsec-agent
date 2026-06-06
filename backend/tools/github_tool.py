@@ -8,13 +8,14 @@ def get_github_client():
     token = os.getenv("GITHUB_TOKEN")
     return Github(token)
 
-def list_repos(username: str = "ashNikov") -> list:
-    g = get_github_client()
+def list_repos(username: str = "ashNikov", github_token: str = None) -> list:
+    from github import Github
+    g = Github(github_token) if github_token else get_github_client()
     user = g.get_user(username)
     repos = []
     for repo in user.get_repos():
         repos.append({
-            "name": repo.name,
+            "name": repo.full_name,
             "private": repo.private,
             "url": repo.html_url,
             "default_branch": repo.default_branch,

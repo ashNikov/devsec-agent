@@ -7,12 +7,12 @@ from apscheduler.triggers.interval import IntervalTrigger
 logger = logging.getLogger(__name__)
 
 # ── SCHEDULED SCAN JOB ───────────────────────────────────
-def run_scheduled_scan():
+def run_scheduled_scan(org_id: int = None):
     """Full scan job — runs on schedule, alerts Slack."""
     try:
         from agent.core import analyze_and_alert
         logger.info(f"[SCHEDULER] Starting scheduled scan at {datetime.utcnow().isoformat()}")
-        result = analyze_and_alert()
+        result = analyze_and_alert(org_id=org_id)
         logger.info(f"[SCHEDULER] Scan complete: {str(result)[:200]}")
         return result
     except Exception as e:
@@ -156,8 +156,8 @@ def get_scheduler_status() -> dict:
         "scan_interval_hours": SCAN_INTERVAL_HOURS
     }
 
-def trigger_manual_scan() -> dict:
+def trigger_manual_scan(org_id: int = None) -> dict:
     """Trigger an immediate scan outside the schedule."""
     logger.info("[SCHEDULER] Manual scan triggered")
-    result = run_scheduled_scan()
+    result = run_scheduled_scan(org_id=org_id)
     return {"triggered": True, "result": result}

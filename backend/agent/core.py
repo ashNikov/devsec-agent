@@ -46,7 +46,7 @@ def run_full_scan(project_path: str = None) -> dict:
 
     for repo in repos:
         try:
-            repo_result = github_scan_repo(repo["name"])
+            repo_result = github_scan_repo(repo["name"], github_token=github_token)
             findings = repo_result.get("findings", [])
             all_secret_findings.extend(findings)
             repo_scan_summary.append({
@@ -80,9 +80,9 @@ def run_full_scan(project_path: str = None) -> dict:
 
     return results
 
-def analyze_and_alert(project_path: str = None) -> str:
+def analyze_and_alert(project_path: str = None, org_id: int = None) -> str:
     """Brain runs scans across all repos, analyzes findings, sends Slack alerts."""
-    scan_results = run_full_scan(project_path)
+    scan_results = run_full_scan(project_path, org_id=org_id)
 
     secrets_count = scan_results["secrets"].get("total_secrets_found", 0)
     vuln_count    = scan_results["vulnerabilities"].get("total", 0)
