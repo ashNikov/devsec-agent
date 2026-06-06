@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { authApi, settingsApi, orgApi } from '@/lib/api'
+import { authApi, settingsApi, orgApi, getTokenClaims } from '@/lib/api'
 
 const INTEGRATION_ICONS: Record<string, string> = {
   GitHub: '⬡', GCP: '☁', Supabase: '⬢', ngrok: '⌁', Paystack: '₦', Slack: '◈',
@@ -50,14 +50,23 @@ export default function SettingsPage() {
       setGithubMsg('✗ GitHub connect failed — try again')
     }
 
+    // Populate immediately from JWT so fields aren't blank while API loads
+    const claims = getTokenClaims()
+    if (claims) {
+      const emailFromClaims = claims.sub || claims.email || ''
+      setEmail(emailFromClaims)
+      setUser({ email: emailFromClaims, role: claims.role || 'member', plan: claims.plan || 'free' })
+    }
+
     authApi.me().then(u => {
       setUser(u)
-      setEmail(u.sub || u.email || '')
+      setEmail(u.email || u.sub || '')
     }).catch(() => {})
 
     // Fetch real integration status from backend
     const token = localStorage.getItem('agentsec_token')
-    fetch('http://localhost:8000/org/integrations/status', {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    fetch(`${apiBase}/org/integrations/status`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(r => r.json())

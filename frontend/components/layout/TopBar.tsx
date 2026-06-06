@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { authApi } from '@/lib/api'
+import { authApi, getTokenClaims } from '@/lib/api'
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Overview',
@@ -13,23 +13,31 @@ const PAGE_TITLES: Record<string, string> = {
   '/billing': 'Billing & Plans',
 }
 
-export function TopBar() {
+interface TopBarProps {
+  onMobileMenuOpen?: () => void
+}
+
+export function TopBar({ onMobileMenuOpen }: TopBarProps) {
   const pathname = usePathname()
   const title = PAGE_TITLES[pathname] || 'Dashboard'
   const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
+    const claims = getTokenClaims()
+    if (claims) {
+      setUser({
+        email: claims.sub || claims.email || '',
+        role:  claims.role || 'member',
+        plan:  claims.plan || 'free',
+      })
+    }
     authApi.me().then(setUser).catch(() => {})
   }, [])
 
-  const initials = user?.login
-    ? user.login.slice(0, 2).toUpperCase()
-    : user?.sub
-      ? user.sub.slice(0, 2).toUpperCase()
-      : 'UU'
-
-  const displayName = user?.name || user?.login || user?.sub || user?.email?.split('@')[0] || 'User'
-  const displayRole = user?.role || 'owner'
+  const emailOrLogin = user?.login || user?.email || ''
+  const initials = emailOrLogin ? emailOrLogin.slice(0, 2).toUpperCase() : 'UU'
+  const displayName = user?.name || user?.login || user?.email?.split('@')[0] || 'User'
+  const displayRole = user?.role || 'member'
 
   return (
     <div style={{
@@ -37,9 +45,21 @@ export function TopBar() {
       padding: '0 28px', borderBottom: '1px solid var(--border)',
       background: 'var(--surface)', flexShrink: 0,
     }}>
-      <h1 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--fh)', margin: 0 }}>
-        {title}
-      </h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Mobile hamburger */}
+        <button
+          className="topbar-hamburger"
+          onClick={onMobileMenuOpen}
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, flexDirection: 'column', gap: 4, alignItems: 'center', justifyContent: 'center' }}
+        >
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{ width: 18, height: 2, background: 'var(--text-muted)', borderRadius: 2 }} />
+          ))}
+        </button>
+        <h1 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--fh)', margin: 0 }}>
+          {title}
+        </h1>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         {/* GCP badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: 'rgba(0,229,160,0.06)', border: '1px solid rgba(0,229,160,0.15)', borderRadius: 6 }}>

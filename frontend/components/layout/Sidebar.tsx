@@ -3,7 +3,9 @@
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { authApi } from '@/lib/api'
+import { authApi, getTokenClaims } from '@/lib/api'
+
+const ADMIN_EMAILS = ['s.uwemudo@gmail.com', 'uwemudo007@gmail.com', 'victoriaakpa8@gmail.com', 'ashniovtech@gmail.com']
 
 const NAV = [
   { href: '/dashboard',    label: 'Dashboard',    icon: '⬡' },
@@ -15,7 +17,12 @@ const NAV = [
   { href: '/settings',     label: 'Settings',     icon: '⚙' },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean
+  onMobileClose?: () => void
+}
+
+export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname()
   const router   = useRouter()
   const [user,      setUser]      = useState<any>(null)
@@ -23,6 +30,15 @@ export function Sidebar() {
   const [sched,     setSched]     = useState({ pct: 0, label: '—' })
 
   useEffect(() => {
+    // Populate immediately from JWT claims so UI isn't blank while API loads
+    const claims = getTokenClaims()
+    if (claims) {
+      setUser({
+        email: claims.sub || claims.email || '',
+        role:  claims.role  || 'member',
+        plan:  claims.plan  || 'free',
+      })
+    }
     authApi.me().then(setUser).catch(() => {})
   }, [])
 
@@ -43,17 +59,20 @@ export function Sidebar() {
     router.push('/login')
   }
 
-  const initials = user?.login
-    ? user.login.slice(0, 2).toUpperCase()
-    : user?.sub
-      ? user.sub.slice(0, 2).toUpperCase()
-      : '??'
+  const emailOrLogin = user?.login || user?.email || ''
+  const initials = emailOrLogin
+    ? emailOrLogin.slice(0, 2).toUpperCase()
+    : '??'
+
+  const isAdmin = user?.role === 'owner' || ADMIN_EMAILS.includes(user?.email)
 
   const w = collapsed ? 56 : 220
 
   return (
-    <div style={{ width: w, minWidth: w, background: 'var(--surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', flexShrink: 0, height: '100vh', transition: 'width 0.2s ease, min-width 0.2s ease', overflow: 'hidden' }}>
-
+    <div
+      className={`sidebar-root${mobileOpen ? ' sidebar-mobile-open' : ''}`}
+      style={{ width: w, minWidth: w, background: 'var(--surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', flexShrink: 0, height: '100vh', transition: 'width 0.2s ease, min-width 0.2s ease', overflow: 'hidden' }}
+    >
       {/* Logo + hamburger */}
       <div style={{ padding: collapsed ? '16px 0' : '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', minHeight: 60 }}>
         {!collapsed && (
@@ -65,12 +84,12 @@ export function Sidebar() {
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--fh)', lineHeight: 1 }}>
                 Agent<span style={{ color: 'var(--accent)' }}>Sec</span>
               </div>
-              <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2, letterSpacing: '0.3px' }}>BETA · Phase 4</div>
+              <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2, letterSpacing: '0.3px' }}>BETA · Phase 5</div>
             </div>
           </div>
         )}
         <button
-          onClick={() => setCollapsed(c => !c)}
+          onClick={() => { setCollapsed(c => !c); onMobileClose?.() }}
           style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
         >
           {[0, 1, 2].map(i => (
@@ -84,7 +103,7 @@ export function Sidebar() {
         {NAV.map(item => {
           const active = pathname === item.href
           return (
-            <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }} title={collapsed ? item.label : undefined}>
+            <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }} title={collapsed ? item.label : undefined} onClick={() => onMobileClose?.()}>
               <div style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 10, padding: collapsed ? '9px 0' : '8px 10px', justifyContent: collapsed ? 'center' : 'flex-start', borderRadius: 8, background: active ? 'rgba(0,229,160,0.1)' : 'transparent', border: `1px solid ${active ? 'rgba(0,229,160,0.2)' : 'transparent'}`, cursor: 'pointer', transition: 'all 0.15s' }}
                 onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
                 onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}>
@@ -95,10 +114,10 @@ export function Sidebar() {
           )
         })}
 
-        {user?.role === 'owner' && (
+        {isAdmin && (
           <>
             <div style={{ height: 1, background: 'var(--border)', margin: '8px 0' }} />
-            <Link href="/admin" style={{ textDecoration: 'none' }} title={collapsed ? 'Admin' : undefined}>
+            <Link href="/admin" style={{ textDecoration: 'none' }} title={collapsed ? 'Admin' : undefined} onClick={() => onMobileClose?.()}>
               <div style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 10, padding: collapsed ? '9px 0' : '8px 10px', justifyContent: collapsed ? 'center' : 'flex-start', borderRadius: 8, background: pathname === '/admin' ? 'rgba(59,130,246,0.1)' : 'transparent', border: `1px solid ${pathname === '/admin' ? 'rgba(59,130,246,0.25)' : 'transparent'}`, cursor: 'pointer', transition: 'all 0.15s' }}
                 onMouseEnter={e => { if (pathname !== '/admin') e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
                 onMouseLeave={e => { if (pathname !== '/admin') e.currentTarget.style.background = 'transparent' }}>
@@ -132,7 +151,7 @@ export function Sidebar() {
           {!collapsed && (
             <div>
               <div style={{ fontSize: 11, color: 'var(--text)', fontWeight: 600, lineHeight: 1.2, maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user?.sub || '…'}
+                {user?.email || '…'}
               </div>
               <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{user?.role || 'member'}</div>
             </div>

@@ -5,6 +5,17 @@ function getToken(): string | null {
   return localStorage.getItem('agentsec_token')
 }
 
+export function getTokenClaims(): { sub?: string; email?: string; role?: string; plan?: string; org_id?: number } | null {
+  const token = getToken()
+  if (!token) return null
+  try {
+    const payload = token.split('.')[1]
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
+  } catch {
+    return null
+  }
+}
+
 export async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const token = getToken()
   const headers: Record<string, string> = {
