@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { authApi, getTokenClaims } from '@/lib/api'
+import { authApi, dashApi, getTokenClaims } from "@/lib/api"
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Overview',
@@ -33,7 +33,7 @@ export function TopBar({ onMobileMenuOpen }: TopBarProps) {
       })
     }
     authApi.me().then(setUser).catch(() => {})
-      authApi.orgMe().then(setOrg).catch(() => {})
+      dashApi.orgMe().then(setOrg).catch(() => {})
   }, [])
 
   const emailOrLogin = user?.login || user?.email || ''
