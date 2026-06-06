@@ -230,7 +230,7 @@ export default function SettingsPage() {
                     onClick={() => {
                       if (intg.name === 'GitHub') {
                         const token = localStorage.getItem('agentsec_token')
-                        window.location.href = `http://localhost:8000/auth/github-connect?token=${token}`
+                        window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "https://agentsec-staging-468774339170.us-central1.run.app"}/auth/github-connect?token=${token}`
                       } else if (intg.name === 'Paystack') window.open('https://dashboard.paystack.com', '_blank')
                       else if (intg.name === 'Slack') window.open('https://api.slack.com/apps', '_blank')
                     }}
