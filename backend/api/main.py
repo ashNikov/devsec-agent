@@ -706,20 +706,31 @@ def agent_brain(request: Request, body: BrainRequest = None, user: dict = Depend
     if body and body.scan_summary:
         scan_summary = body.scan_summary
     else:
-        project_path = os.path.expanduser("~/projects/devsec-agent")
-        gl = gitleaks_scan(project_path)
-        tv = scan_filesystem(project_path)
-        secrets_count = gl.get("total_secrets_found", 0)
-        vulns_count = tv.get("total", 0)
-        critical_count = sum(1 for f in tv.get("findings", []) if f.get("severity") == "CRITICAL")
-        scan_summary = f"""
-        Scan results for AgentSec project:
-        - {secrets_count} secrets detected
-        - {vulns_count} vulnerabilities found ({critical_count} CRITICAL)
-        - Repos scanned: devsec-agent
-        - GCP project: agent-sec-496307
-        - Tools: Gitleaks v8.18.2, Trivy v0.70.0
-        """
+        # Build scan summary from org's recent scan history in DB
+        try:
+            from db.models import SessionLocal, ScanResult, UserRepo
+            db = SessionLocal()
+            recent_scans = db.query(ScanResult).filter(
+                ScanResult.org_id == user["org_id"]
+            ).order_by(ScanResult.scanned_at.desc()).limit(10).all()
+            db.close()
+            if recent_scans:
+                secrets_total = sum(s.secrets_found or 0 for s in recent_scans)
+                vulns_total = sum(s.vulns_found or 0 for s in recent_scans)
+                critical_total = sum(s.critical_count or 0 for s in recent_scans)
+                repo_lines = "\n".join([f"  - {s.repo}: {s.secrets_found or 0} secrets, {s.vulns_found or 0} vulns" for s in recent_scans])
+                scan_summary = f"""
+        Scan results for org {user.get("org_id")}:
+        - {secrets_total} total secrets detected across {len(recent_scans)} repos
+        - {vulns_total} vulnerabilities found ({critical_total} CRITICAL)
+        - Recent repo scans:
+{repo_lines}
+        - Tools: Gitleaks, Trivy, GitHub Scanner
+                """
+            else:
+                scan_summary = "No scan data available yet. Repos are clean or no scans have been run."
+        except Exception as e:
+            scan_summary = f"Unable to fetch scan data: {str(e)}"
 
     result = multi_brain_analyze(scan_summary)
 
