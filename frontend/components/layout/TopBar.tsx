@@ -21,6 +21,7 @@ export function TopBar({ onMobileMenuOpen }: TopBarProps) {
   const pathname = usePathname()
   const title = PAGE_TITLES[pathname] || 'Dashboard'
   const [user, setUser] = useState<any>(null)
+  const [org,  setOrg]  = useState<any>(null)
 
   useEffect(() => {
     const claims = getTokenClaims()
@@ -32,6 +33,7 @@ export function TopBar({ onMobileMenuOpen }: TopBarProps) {
       })
     }
     authApi.me().then(setUser).catch(() => {})
+      authApi.orgMe().then(setOrg).catch(() => {})
   }, [])
 
   const emailOrLogin = user?.login || user?.email || ''
@@ -64,7 +66,7 @@ export function TopBar({ onMobileMenuOpen }: TopBarProps) {
         {/* GCP badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: 'rgba(0,229,160,0.06)', border: '1px solid rgba(0,229,160,0.15)', borderRadius: 6 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 0 6px rgba(0,229,160,0.6)' }} />
-          <span style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--fm)', fontWeight: 500 }}>agent-sec-496307</span>
+          <span style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--fm)', fontWeight: 500 }}>{org?.name || 'AgentSec'}</span>
         </div>
         {/* User avatar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
