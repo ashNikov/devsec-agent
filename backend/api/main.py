@@ -892,7 +892,23 @@ class RepoScanRequest(BaseModel):
 @limiter.limit("10/minute")
 def scan_single_repo(request: Request, body: RepoScanRequest, user: dict = Depends(get_current_user)):
     """Scan a single repo via GitHub API."""
-    result = scan_repo_for_secrets(body.repo_name)
+    # Fetch org's GitHub token from integrations table
+    from db.database import SessionLocal
+    from db.models import Integration
+    github_token = None
+    try:
+        db = SessionLocal()
+        integration = db.query(Integration).filter(
+            Integration.org_id == user["org_id"],
+            Integration.provider == "github",
+            Integration.is_active == True
+        ).first()
+        if integration and integration.access_token_encrypted:
+            github_token = integration.access_token_encrypted
+        db.close()
+    except Exception:
+        pass
+    result = scan_repo_for_secrets(body.repo_name, github_token=github_token)
     from db.repository import save_scan_result
     save_scan_result(
         repo=body.repo_name,

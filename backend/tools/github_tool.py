@@ -22,9 +22,11 @@ def list_repos(username: str = "ashNikov") -> list:
         })
     return repos
 
-def scan_repo_for_secrets(repo_name: str, username: str = "ashNikov", max_seconds: int = 15) -> dict:
-    g = get_github_client()
-    repo = g.get_repo(f"{username}/{repo_name}")
+def scan_repo_for_secrets(repo_name: str, username: str = "ashNikov", max_seconds: int = 15, github_token: str = None) -> dict:
+    from github import Github
+    g = Github(github_token) if github_token else get_github_client()
+    full_name = repo_name if "/" in repo_name else f"{username}/{repo_name}"
+    repo = g.get_repo(full_name)
     findings = []
     secret_keywords = [
         "api_key", "secret", "password", "token",
