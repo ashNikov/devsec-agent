@@ -920,17 +920,37 @@ def scan_single_repo(request: Request, body: RepoScanRequest, user: dict = Depen
 @app.get("/org/integrations/status")
 @limiter.limit("20/minute")
 def integrations_status(request: Request, user: dict = Depends(get_current_user)):
-    """Return real integration status based on env vars."""
+    """Return real integration status based on DB + env vars."""
     def is_set(key: str) -> bool:
         val = os.getenv(key, "").strip()
         return bool(val) and val not in ("", "your_key_here", "changeme", "xxx")
-
+    # Check GitHub from DB
+    github_connected = False
+    github_login = None
+    try:
+        from db.models import SessionLocal, Integration
+        db = SessionLocal()
+        intg = db.query(Integration).filter(
+            Integration.org_id == user["org_id"],
+            Integration.provider == "github",
+            Integration.is_active == True
+        ).first()
+        if intg and intg.access_token_encrypted:
+            github_connected = True
+            try:
+                import json as _j
+                meta = _j.loads(intg.metadata_json or "{}")
+                github_login = meta.get("login", "")
+            except Exception:
+                pass
+        db.close()
+    except Exception:
+        pass
     return [
         {
             "name": "GitHub",
-            "desc": f"Repository scanning · {'OAuth connected' if is_set('GITHUB_TOKEN') else 'Token missing'}",
-            "status": "connected" if is_set("GITHUB_TOKEN") else "disconnected",
-        },
+            "desc": f"Repository scanning · {'OAuth connected as @' + github_login if github_connected and github_login else 'OAuth connected' if github_connected else 'Token missing'}",
+            "status": "connected" if github_connected else "disconnected",
         {
             "name": "GCP",
             "desc": f"agent-sec-496307 · {'Cloud Run deployed' if is_set('GOOGLE_APPLICATION_CREDENTIALS') or is_set('GCP_PROJECT_ID') else 'Credentials missing'}",
