@@ -893,8 +893,7 @@ class RepoScanRequest(BaseModel):
 def scan_single_repo(request: Request, body: RepoScanRequest, user: dict = Depends(get_current_user)):
     """Scan a single repo via GitHub API."""
     # Fetch org's GitHub token from integrations table
-    from db.database import SessionLocal
-    from db.models import Integration
+    from db.models import SessionLocal, Integration
     github_token = None
     try:
         db = SessionLocal()
