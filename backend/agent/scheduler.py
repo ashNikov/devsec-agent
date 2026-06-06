@@ -1,3 +1,4 @@
+from db.encryption import decrypt_token
 import os
 import logging
 from datetime import datetime
@@ -49,7 +50,7 @@ def run_repo_sync():
                     resp = httpx.get(
                         "https://api.github.com/user/repos?per_page=100&sort=updated&type=owner",
                         headers={
-                            "Authorization": f"Bearer {intg.access_token_encrypted}",
+                            "Authorization": f"Bearer {decrypt_token(intg.access_token_encrypted)}",
                             "Accept": "application/vnd.github.v3+json",
                         },
                         timeout=10,

@@ -256,6 +256,7 @@ def agent_scan(request: Request, user: dict = Depends(get_current_user)):
 
 # ── SCAN HISTORY ENDPOINTS ───────────────────────────────
 from db.repository import get_scan_history, get_repo_trends
+from db.encryption import encrypt_token, decrypt_token
 from db.models import init_db
 
 # Initialize DB on startup
@@ -903,7 +904,7 @@ def scan_single_repo(request: Request, body: RepoScanRequest, user: dict = Depen
             Integration.is_active == True
         ).first()
         if integration and integration.access_token_encrypted:
-            github_token = integration.access_token_encrypted
+            github_token = decrypt_token(integration.access_token_encrypted)
         db.close()
     except Exception:
         pass
@@ -937,6 +938,7 @@ def integrations_status(request: Request, user: dict = Depends(get_current_user)
         ).first()
         if intg and intg.access_token_encrypted:
             github_connected = True
+            intg.access_token_encrypted = decrypt_token(intg.access_token_encrypted)
             try:
                 import json as _j
                 meta = _j.loads(intg.metadata_json or "{}")
@@ -951,6 +953,7 @@ def integrations_status(request: Request, user: dict = Depends(get_current_user)
             "name": "GitHub",
             "desc": f"Repository scanning · {'OAuth connected as @' + github_login if github_connected and github_login else 'OAuth connected' if github_connected else 'Token missing'}",
             "status": "connected" if github_connected else "disconnected",
+        },
         {
             "name": "GCP",
             "desc": f"agent-sec-496307 · {'Cloud Run deployed' if is_set('GOOGLE_APPLICATION_CREDENTIALS') or is_set('GCP_PROJECT_ID') else 'Credentials missing'}",
@@ -1049,13 +1052,13 @@ async def github_connect_callback(code: str, state: str, request: Request):
         ).first()
 
         if existing:
-            existing.access_token_encrypted = github_token
+            existing.access_token_encrypted = encrypt_token(github_token)
             existing.is_active = True
         else:
             db.add(_Intg(
                 org_id=org_id,
                 provider="github",
-                access_token_encrypted=github_token,
+                access_token_encrypted=encrypt_token(github_token),
                 is_active=True,
             ))
 
