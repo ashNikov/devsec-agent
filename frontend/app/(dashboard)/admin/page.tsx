@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { authApi, dashApi } from '@/lib/api'
 
-const ADMIN_EMAILS = ['s.uwemudo@gmail.com', 'victoriaakpa8@gmail.com', 'ashniovtech@gmail.com']
+const ADMIN_EMAILS = ['s.uwemudo@gmail.com', 'uwemudo007@gmail.com', 'victoriaakpa8@gmail.com', 'ashniovtech@gmail.com']
 
 const PHASES = [
   { num: 1, name: 'Core Scanner + GitHub OAuth',          status: 'complete', date: 'Apr 2026' },
