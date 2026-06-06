@@ -1,13 +1,13 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-export default function BillingCallbackPage() {
+function BillingCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const reference = searchParams.get('reference') || searchParams.get('trxref') || ''
@@ -90,5 +90,13 @@ export default function BillingCallbackPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function BillingCallbackPage() {
+  return (
+    <Suspense fallback={<div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Loading...</div>}>
+      <BillingCallbackContent />
+    </Suspense>
   )
 }
