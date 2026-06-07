@@ -12,93 +12,35 @@ AgentSec is an autonomous DevSecOps agent that watches your GitHub repositories 
 
 Every startup and solo developer deserves enterprise-grade DevSecOps — not because they can afford a $150k/year security engineer, but because AgentSec works for them around the clock.
 
-**Status:** Phase 1 Complete | Phase 2 Complete | Phase 3 Complete ✅ | Phase 4 Next
+**Status:** Phase 1 ✅ | Phase 2 ✅ | Phase 3 ✅ | Phase 4 ✅ | Phase 5 🔄 IN PROGRESS (90%)
+
+**Live at:** https://www.ashtech.app
+
+---
+
+## Commercial Focus
+
+> **Automatically detect and remediate exposed secrets + cloud misconfigurations for small engineering teams.**
+
+**Free Plan:** 1 repo, scan only, no auto-remediation, up to 3 members
+
+**Pro Plan (NGN 15,000/month):** Unlimited repos, auto-remediation, scan history, multi-agent brain analysis
 
 ---
 
 ## Key Capabilities
 
-- **Multi-Repo Scanning** — dynamically scans every repository in your GitHub org, auto-discovers new repos instantly
+- **Multi-Repo Scanning** — dynamically scans every repository in your GitHub org
 - **Secret Detection** — Gitleaks scans for exposed API keys, tokens, and credentials
 - **Vulnerability Scanning** — Trivy detects CVEs across filesystems and Docker images
 - **Cloud Security** — monitors GCP IAM, Cloud Run, and Storage for misconfigurations
-- **Auto-Remediation** — rotates secrets, fixes risky IAM bindings, hardens Dockerfiles, flags vulnerable dependencies
+- **Auto-Remediation** — rotates secrets, fixes risky IAM bindings, hardens Dockerfiles
 - **Approval Workflow** — high-risk actions require human approval via Slack and dashboard
-- **Encrypted Networking** — WireGuard VPN tunnel between agent and cloud infrastructure
+- **Multi-Agent Brain** — Claude Haiku + Sonnet + Python Judge for AI-powered analysis
 - **Scheduled Scanning** — autonomous scans every 6 hours with AI-prioritized reporting
 - **Real-Time Alerts** — instant Slack push notifications to your phone
-
----
-
-## Architecture
-
-```mermaid
-graph TD
-    A[Developer pushes code] --> B[GitHub Repository]
-    B --> C{GitHub Actions CI/CD}
-    C --> D[Gitleaks Secret Scan]
-    C --> E[Trivy Vulnerability Scan]
-    C --> F[Docker Build Test]
-
-    G[AgentSec Backend FastAPI] --> H[Claude Brain]
-    H --> I[Analysis and Prioritization]
-
-    D -->|Findings| G
-    E -->|Findings| G
-    F -->|Status| G
-
-    G --> J[AgentSec Dashboard]
-    G --> K[Auto-Remediation Engine]
-    G --> L[Approval Workflow]
-    L --> M[Slack Approve/Reject]
-    G --> N[Slack Alerts]
-    N --> O[Developer Phone]
-
-    subgraph Tools
-        T1[GitHub Tool]
-        T2[Gitleaks Tool]
-        T3[Trivy Tool]
-        T4[GCP Tool]
-    end
-    T1 --> G
-    T2 --> G
-    T3 --> G
-    T4 --> G
-
-    subgraph SecureInfra[Secure Infrastructure]
-        W1[WireGuard Tunnel]
-        W2[GCP VM us-central1]
-        W1 --> W2
-    end
-    G -.encrypted.-> W1
-```
-
----
-
-## Agent Flow
-
-```mermaid
-sequenceDiagram
-    participant Dev as Developer
-    participant Agent as AgentSec
-    participant Brain as Claude Brain
-    participant Slack as Slack
-
-    Dev->>Agent: Trigger scan (manual or scheduled)
-    Agent->>Agent: Scan all repos via GitHub API
-    Agent->>Agent: Run Gitleaks + Trivy
-    Agent->>Agent: Check GCP IAM bindings
-    Agent->>Brain: Send aggregated findings
-    Brain->>Brain: Analyze and prioritize
-    Brain-->>Agent: Prioritized report
-    Agent-->>Slack: Per-repo breakdown + analysis
-    Slack-->>Dev: Push notification
-
-    Note over Agent,Slack: High-risk remediation
-    Agent-->>Slack: Approval Required - rotate secret?
-    Dev->>Slack: APPROVE / REJECT
-    Slack->>Agent: Decision
-    Agent->>Agent: Execute or abort
+- **SaaS Multi-Tenant** — full org isolation, per-org GitHub token, AES-256 encrypted token storage
+- **Paystack Billing** — Free and Pro subscription plans (NGN 15,000/month)
 
 ---
 
@@ -109,187 +51,139 @@ sequenceDiagram
 | Agent Brain | Claude Sonnet + Haiku + Python Judge | Multi-agent reasoning and decision making |
 | Backend | FastAPI + Python 3.12 | API server and agent orchestration |
 | Frontend | Next.js 16 + TypeScript | Live monitoring dashboard |
-| Auth | GitHub OAuth + JWT + Email/Password | Secure auth with short-expiry tokens |
-| Secret Scanner | Gitleaks | Detect exposed API keys and secrets |
-| Vulnerability Scanner | Trivy | Scan containers and filesystems |
+| Auth | GitHub OAuth + JWT + Email/Password | Secure auth with 30-day persistent login |
+| Database | PostgreSQL (GCP Cloud SQL) | 17-table SaaS schema |
+| ORM/Migrations | SQLAlchemy + Alembic | Schema versioning and rollback |
+| Secret Scanner | Gitleaks v8.18.2 | Detect exposed API keys and secrets |
+| Vulnerability Scanner | Trivy v0.70.0 | Scan containers and filesystems |
+| SAST | SonarCloud | Static code analysis |
 | GitHub Integration | PyGitHub | Repository monitoring and scanning |
-| Cloud | GCP (Cloud Run, IAM, Secret Manager) | Infra scanning and secret storage |
-| Networking | WireGuard | Encrypted tunnel between agent and cloud |
+| Token Security | AES-256 (Fernet) | Encrypted GitHub tokens at rest |
+| Cloud | GCP (Cloud Run, Cloud SQL) | Hosting, DB, scanning |
 | Alerting | Slack Webhooks + Interactive Buttons | Real-time alerts + approval workflow |
-| CI/CD | GitHub Actions | Automated security pipeline on every push |
+| CI/CD | GitHub Actions | Auto-deploy backend + frontend on every push |
 | IaC | Terraform + Ansible | Provisioning and configuration management |
-| Database Migrations | Alembic | Schema versioning and rollback |
 | Billing | Paystack | Subscription billing, Free/Pro plans |
-| Container | Docker | Portable deployment |
+| Email | Resend | Team invites, password reset |
+| Error Tracking | Sentry + structured logging | Production error monitoring |
+| Frontend Hosting | Vercel | Auto-deploy from GitHub |
+| Domain | ashtech.app (Cloudflare) | Custom domain, SSL |
 
 ---
 
-## Engineering Standard
+## Phase Progress
 
-> Every resource provisioned with Terraform. Every configuration managed with Ansible. Nothing touched manually. Everything version controlled. Everything repeatable. Everything rollbackable.
+### Phase 1 — Detection ✅
+- GitHub repo monitoring, Gitleaks, Trivy, GCP IAM monitoring
+- FastAPI backend, Next.js dashboard, Docker, GitHub Actions CI/CD
+- Claude brain wired to all tools, real-time Slack alerts
+
+### Phase 2 — Remediation ✅
+- GitHub OAuth + JWT auth (30-day persistent login)
+- Rate limiting, CORS lockdown, input validation, HTTPS
+- Auto-remediation engine — secret rotation, IAM fixes, Dockerfile hardening
+- Scheduled scanner — autonomous scans every 6 hours
+- Approval workflow — Slack + dashboard APPROVE/REJECT with audit trail
+
+### Phase 3 — SaaS Foundation ✅
+- CI/CD hardening — SonarCloud SAST, SARIF upload, PR gates, 5/5 tools active
+- Multi-agent brain — Haiku + Sonnet + Python Judge with scoring system
+- Complete 17-table PostgreSQL schema with Alembic migrations
+- Email/password registration + JWT auth (org_id/role/plan claims)
+- Paystack billing integration — webhook, plan enforcement, subscription management
+- All 5 scanners ACTIVE on staging
+
+### Phase 4 — Full SaaS Dashboard ✅
+- Complete Next.js App Router SaaS UI — 6 dashboard pages + Admin panel
+- UI wired to live backend data (repos, findings, scan history, team, billing, settings)
+- Invite flow — real email via Resend
+- Brain result auto-saving to scan history DB
+- Vercel deployment — auto-deploys on push
+- Scan history page + repo trend badges
+- Sentry error tracking + structured Python logging
+- GitHub webhook + background repo sync every 2 minutes
+- agentsec.config.json as single source of truth
+
+### Phase 5 — Production + YC W2027 Launch 🔄 (90%)
+- ✅ ashtech.app domain live — Cloudflare → Vercel, SSL, Chrome warning eliminated
+- ✅ Landing page — hero, how it works, pricing, CTA
+- ✅ GitHub OAuth fully fixed — production callback URL, real email via /user/emails API
+- ✅ AES-256 token encryption at rest — Fernet encryption for all GitHub OAuth tokens
+- ✅ Per-org GitHub token isolation — every org uses their own token, never shared
+- ✅ Scan Now + Scan All — multi-tenant safe, uses org token from DB for all clients
+- ✅ GitHub integration status — reads from DB, shows real connected state per org
+- ✅ Org badge — shows workspace name not GCP project ID
+- ✅ Forgot/reset password — backend + frontend complete
+- ✅ Billing callback page — Paystack payment confirmation flow
+- ✅ Memory limit — Cloud Run upgraded to 1GB
+- ✅ Multi-brain analysis — uses org's real scan history from DB
+- ✅ Victoria (VictoriaLab) — first external user, full e2e: GitHub connected, repos scanned, 4 secrets detected
+- 🔄 Paystack live key swap
+- 🔄 Landing page demo video + waitlist
+- 🔄 Multi-brain analyze debug (score=0 bug)
+- 🔄 YC W2027 application (after first paying customer)
 
 ---
 
-## Features
+## Security & Privacy
 
-### Phase 1 — Detection (Complete)
-- GitHub repository monitoring, auto-discovers new repos
-- Secret detection with Gitleaks across entire codebase
-- Vulnerability scanning with Trivy (filesystem + Docker images)
-- GCP cloud identity and IAM monitoring
-- FastAPI backend with full tool integration
-- Next.js dashboard with animated radar
-- Docker containerization
-- GitHub Actions CI/CD - 3-job pipeline
-- Claude brain wired to all tools
-- Real-time Slack alerts
-
-### Phase 2 — Remediation (Complete)
-- GitHub OAuth + JWT authentication (30-min expiry, silent refresh)
-- Rate limiting, CORS lockdown, input validation, HTTPS middleware
-- All secrets migrated to GCP Secret Manager
-- Auto-remediation engine - secret rotation, IAM fixes, Dockerfile hardening
-- Scheduled scanner - autonomous scans every 6 hours
-- Mad Interactive UI - cyber mission control dashboard
-- Multi-repo scanning - dynamic, scales to any number of repos
-- Approval workflow - Slack + dashboard APPROVE/REJECT with audit trail
-- WireGuard layer - encrypted tunnel to GCP infrastructure
-
-### Phase 3 — Building Agent + SaaS Foundation (Complete ✅)
-- ✅ CI/CD hardening — SonarCloud SAST, SARIF upload, PR gates, 5/5 tools active
-- ✅ Auto-provisioning — agent adds CI/CD, gitignore, branch protection, compliance board
-- ⏸ AWS integration — DEFERRED (account inactive)
-- ✅ Multi-agent brain — Haiku + Sonnet + Python Judge
-- ✅ SaaS foundation — 16-table schema, Paystack billing, Slack interactive approvals, audit logs
-
-### Phase 4 — Full DevSecOps Engineer (Planned)
-- Multi-cloud (AWS + GCP + Azure)
-- Kubernetes security, HashiCorp Vault
-- SOC2 / ISO27001 / CIS compliance
-- SAST + DAST scanning
-- Automated executive reporting
-
----
-
-## Project Structure
-
-```
-devsec-agent/
-├── backend/
-│   ├── agent/
-│   │   ├── core.py           # Agent brain + multi-repo scanning
-│   │   └── scheduler.py      # Autonomous scheduled scanner
-│   ├── tools/
-│   │   ├── github_tool.py    # GitHub integration
-│   │   ├── gitleaks.py       # Secret scanning
-│   │   ├── trivy.py          # Vulnerability scanning
-│   │   ├── gcp.py            # GCP cloud scanning
-│   │   ├── slack.py          # Slack alerting
-│   │   ├── remediation.py    # Auto-fix engine
-│   │   └── approval.py       # Approval workflow store
-│   ├── auth/
-│   │   └── jwt_handler.py    # JWT token management
-│   ├── api/
-│   │   └── main.py           # FastAPI server
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/
-│   └── app/
-│       ├── page.tsx          # Main dashboard
-│       ├── layout.tsx        # App layout
-│       └── globals.css       # AgentSec dark theme
-├── terraform/                # Infrastructure as Code
-│   ├── main.tf               # GCP resources + WireGuard VM
-│   ├── variables.tf
-│   ├── providers.tf
-│   └── outputs.tf
-├── ansible/                  # Configuration management
-│   ├── inventory.ini
-│   └── playbooks/
-│       ├── setup.yml
-│       ├── configure_secrets.yml
-│       └── wireguard.yml     # WireGuard tunnel config
-├── .github/
-│   └── workflows/
-│       └── security.yml      # CI/CD security pipeline
-└── README.md
-```
+- **GitHub tokens encrypted at rest** — AES-256 (Fernet) before storing in DB
+- **Per-org token isolation** — each org's GitHub token is never shared
+- **JWT authentication** — tokens with org_id/role/plan claims
+- **HTTPS everywhere** — all traffic encrypted in transit
+- **No code storage** — AgentSec scans for secret keywords, never stores your code
+- **Org data isolation** — no org can see another org's data
+- **Audit logs** — all critical actions logged with timestamp and user
 
 ---
 
 ## Quick Start
 
 ### Prerequisites
-- Python 3.12+
-- Node.js 22+
-- Docker
-- gcloud CLI
-- Terraform + Ansible
-- Gitleaks + Trivy
+- Python 3.12+, Node.js 22+, Docker, gcloud CLI, Terraform + Ansible, Gitleaks + Trivy
 
-### 1. Clone the repo
+### 1. Clone and set up
 ```bash
 git clone https://github.com/ashNikov/devsec-agent.git
 cd devsec-agent
-```
-
-### 2. Set up backend
-```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate
+cd backend && python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Configure environment
+### 2. Configure environment
 ```bash
 cp .env.example .env
 ```
 
 Required keys:
-ANTHROPIC_API_KEY=your_key
-GITHUB_TOKEN=your_token
-GITHUB_CLIENT_ID=your_oauth_client_id
-GITHUB_CLIENT_SECRET=your_oauth_client_secret
-GCP_PROJECT_ID=your_project_id
-SLACK_WEBHOOK_URL=your_webhook_url
+ANTHROPIC_API_KEY=
+GITHUB_TOKEN=
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GCP_PROJECT_ID=
+SLACK_WEBHOOK_URL=
+JWT_SECRET_KEY=
+DATABASE_URL=
+PAYSTACK_SECRET_KEY=
+TOKEN_ENCRYPTION_KEY=
+RESEND_API_KEY=
 
-### 4. Provision infrastructure (Terraform)
+### 3. Run migrations and start
 ```bash
-cd terraform
-terraform init
-terraform plan
-terraform apply
-```
-
-### 5. Configure with Ansible
-```bash
-cd ../ansible
-ansible-playbook -i inventory.ini playbooks/setup.yml
-```
-
-### 6. Start the backend
-```bash
-cd ../backend
+alembic upgrade head
 uvicorn api.main:app --reload --port 8000
+cd ../frontend && npm install && npm run dev
 ```
 
-### 7. Start the frontend
-```bash
-cd ../frontend
-npm install
-npm run dev
-```
-
-### 8. Open the dashboard
-Navigate to http://localhost:3000 and log in with GitHub.
+Navigate to http://localhost:3000
 
 ---
 
 ## About
 
-**AgentSec** is built by **ashNikov Technologies**.
+**AgentSec** is built by **Uwem** at **ashNikov Technologies**, Uyo, Nigeria.
 
+Live: https://www.ashtech.app
 GitHub: [@ashNikov](https://github.com/ashNikov)
 
 > *"Security shouldn't be an afterthought. AgentSec makes it automatic."*
