@@ -145,7 +145,7 @@ def check_tool(command: list) -> str:
 # ── HEALTH CACHE ─────────────────────────────────────────
 _health_cache = {
     "status": "healthy",
-    "model": "claude-sonnet-4-20250514",
+    "model": "claude-sonnet-4-5-20250929",
     "sonarcloud": {},
     "tools": {
         "gitleaks": "checking",
@@ -211,7 +211,7 @@ def get_current_user(request: Request) -> dict:
 @app.get("/")
 def root():
     return {"message": "AgentSec is running", "status": "healthy",
-    "model": "claude-sonnet-4-20250514",
+    "model": "claude-sonnet-4-5-20250929",
     "sonarcloud": {}, "version": "2.0.0"}
 
 @app.get("/identity")
