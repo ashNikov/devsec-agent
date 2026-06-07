@@ -44,6 +44,75 @@ Every startup and solo developer deserves enterprise-grade DevSecOps — not bec
 
 ---
 
+## Architecture
+
+```mermaid
+graph TD
+    A[Developer pushes code] --> B[GitHub Repository]
+    B --> C{GitHub Actions CI/CD}
+    C --> D[Gitleaks Secret Scan]
+    C --> E[Trivy Vulnerability Scan]
+    C --> F[Docker Build Test]
+
+    G[AgentSec Backend FastAPI] --> H[Claude Brain]
+    H --> I[Analysis and Prioritization]
+
+    D -->|Findings| G
+    E -->|Findings| G
+    F -->|Status| G
+
+    G --> J[AgentSec Dashboard]
+    G --> K[Auto-Remediation Engine]
+    G --> L[Approval Workflow]
+    L --> M[Slack Approve/Reject]
+    G --> N[Slack Alerts]
+    N --> O[Developer Phone]
+
+    subgraph Tools
+        T1[GitHub Tool]
+        T2[Gitleaks Tool]
+        T3[Trivy Tool]
+        T4[GCP Tool]
+        T5[SonarCloud]
+    end
+    T1 --> G
+    T2 --> G
+    T3 --> G
+    T4 --> G
+    T5 --> G
+```
+
+---
+
+## Agent Flow
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant Agent as AgentSec
+    participant Brain as Claude Brain
+    participant Slack as Slack
+
+    Dev->>Agent: Trigger scan (manual or scheduled)
+    Agent->>Agent: Fetch org GitHub token from DB
+    Agent->>Agent: Scan all repos via GitHub API
+    Agent->>Agent: Run Gitleaks + Trivy
+    Agent->>Agent: Check GCP IAM bindings
+    Agent->>Brain: Send aggregated findings
+    Brain->>Brain: Haiku analyzes, Python Judge scores
+    Brain-->>Agent: Prioritized report
+    Agent-->>Slack: Per-repo breakdown + analysis
+    Slack-->>Dev: Push notification
+
+    Note over Agent,Slack: High-risk remediation
+    Agent-->>Slack: Approval Required - rotate secret?
+    Dev->>Slack: APPROVE / REJECT
+    Slack->>Agent: Decision
+    Agent->>Agent: Execute or abort
+```
+
+---
+
 ## Tech Stack
 
 | Layer | Technology | Purpose |
