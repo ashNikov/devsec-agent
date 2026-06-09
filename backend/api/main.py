@@ -19,7 +19,7 @@ import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
 
-# ── STRUCTURED LOGGING ───────────────────────────────────
+# ── STRUCTURED LOGGING ──────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -27,7 +27,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("agentsec")
 
-# ── SENTRY ERROR TRACKING ────────────────────────────────
+# ── SENTRY ERROR TRACKING ───────────────────────────────────────────────
 SENTRY_DSN = os.getenv("SENTRY_DSN", "")
 if SENTRY_DSN:
     sentry_sdk.init(
@@ -142,7 +142,7 @@ def check_tool(command: list) -> str:
     except Exception:
         return "unavailable"
 
-# ── HEALTH CACHE ─────────────────────────────────────────
+# ── HEALTH CACHE ────────────────────────────────────────────────────────
 _health_cache = {
     "status": "healthy",
     "model": "claude-sonnet-4-5-20250929",
@@ -169,7 +169,7 @@ def _refresh_health():
 _health_thread = threading.Thread(target=_refresh_health, daemon=True)
 _health_thread.start()
 
-# ── SCAN SUMMARY CACHE ────────────────────────────────────
+# ── SCAN SUMMARY CACHE ──────────────────────────────────────────────────
 _summary_cache = {"critical_findings": None, "vulnerabilities": None, "secrets": None}
 
 def _refresh_summary():
@@ -207,7 +207,13 @@ def get_current_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     return payload
 
-# ── EXISTING ENDPOINTS ────────────────────────────────────
+def require_platform_admin(user: dict = Depends(get_current_user)) -> dict:
+    """Dependency — only ashTech platform staff may pass. The real backend lock."""
+    if not user.get("is_platform_admin"):
+        raise HTTPException(status_code=403, detail="Forbidden: platform admin only")
+    return user
+
+# ── EXISTING ENDPOINTS ──────────────────────────────────────────────────
 @app.get("/")
 def root():
     return {"message": "AgentSec is running", "status": "healthy",
@@ -254,7 +260,7 @@ def agent_scan(request: Request, user: dict = Depends(get_current_user)):
     result = analyze_and_alert()
     return {"analysis": result}
 
-# ── SCAN HISTORY ENDPOINTS ───────────────────────────────
+# ── SCAN HISTORY ENDPOINTS ──────────────────────────────────────────────
 from db.repository import get_scan_history, get_repo_trends
 from db.encryption import encrypt_token, decrypt_token
 from db.models import init_db
@@ -274,12 +280,12 @@ def repo_trends(repo: str, request: Request, user: dict = Depends(get_current_us
     """Return trend data for a specific repo."""
     return get_repo_trends(repo)
 
-# ── PROJECT STATUS ENDPOINT ──────────────────────────────
+# ── PROJECT STATUS ENDPOINT ─────────────────────────────────────────────
 import json as _json
 
 @app.get("/project/status")
-def project_status():
-    """Return live project state from agentsec.config.json."""
+def project_status(user: dict = Depends(require_platform_admin)):
+    """Return live project state from agentsec.config.json. Platform admin only."""
     try:
         config_path = "/app/agentsec.config.json" if os.path.exists("/app/agentsec.config.json") else os.path.expanduser("~/projects/devsec-agent/agentsec.config.json")
         with open(config_path) as f:
@@ -287,7 +293,7 @@ def project_status():
     except Exception as e:
         return {"error": str(e)}
 
-# ── SCHEDULER ENDPOINTS ──────────────────────────────────
+# ── SCHEDULER ENDPOINTS ─────────────────────────────────────────────────
 @app.get("/scheduler/status")
 def scheduler_status(request: Request, user: dict = Depends(get_current_user)):
     """Get scheduler status and next run time."""
@@ -299,7 +305,7 @@ def scheduler_trigger(request: Request, user: dict = Depends(get_current_user)):
     """Manually trigger an immediate scan."""
     return trigger_manual_scan(org_id=user.get("org_id"))
 
-# ── REMEDIATION ENDPOINTS ────────────────────────────────
+# ── REMEDIATION ENDPOINTS ───────────────────────────────────────────────
 @app.post("/remediate/iam")
 @limiter.limit("10/minute")
 def remediate_iam(request: Request, user: dict = Depends(get_current_user)):
@@ -334,7 +340,7 @@ def remediate_report(request: Request, user: dict = Depends(get_current_user)):
         {"action": "Secret rotation", "status": "available", "endpoint": "/remediate/rotate-secret"},
     ])
 
-# ── PROVISIONER ENDPOINTS ────────────────────────────────
+# ── PROVISIONER ENDPOINTS ───────────────────────────────────────────────
 from tools.provisioner import scan_all_repos
 
 @app.get("/provision/scan")
@@ -350,7 +356,7 @@ def provision_scan(request: Request, user: dict = Depends(get_current_user)):
         "findings": results
     }
 
-# ── PROVISIONER FIX ENDPOINTS ───────────────────────────
+# ── PROVISIONER FIX ENDPOINTS ───────────────────────────────────────────
 from tools.provisioner import scan_all_repos, add_cicd_pipeline, add_gitignore, enforce_branch_protection
 from tools.approval import request_approval, approve, reject, get_pending, is_approved
 
@@ -489,7 +495,7 @@ async def _register_github_webhook(github_token: str, github_login: str):
     except Exception as e:
         logger.error(f"Webhook registration error for {github_login}: {e}")
 
-# ── GITHUB OAUTH ENDPOINTS ────────────────────────────────
+# ── GITHUB OAUTH ENDPOINTS ──────────────────────────────────────────────
 @app.get("/auth/login")
 def auth_login():
     if not GITHUB_CLIENT_ID:
@@ -560,6 +566,7 @@ async def auth_callback(code: str, request: Request):
     org_id = None
     role = "member"
     plan = "free"
+    is_platform_admin = False
     db = _SL()
     try:
 
@@ -606,6 +613,9 @@ async def auth_callback(code: str, request: Request):
             org = db.query(_Org).filter(_Org.id == org_id).first()
             plan = org.plan if org else "free"
 
+        # Capture platform-admin flag while session is open (staff-only access to /admin)
+        is_platform_admin = bool(getattr(user_obj, "is_platform_admin", False))
+
         # Auto-populate repos
         await _auto_provision_repos(github_token, org_id, plan)
         await _register_github_webhook(github_token, github_login)
@@ -615,13 +625,14 @@ async def auth_callback(code: str, request: Request):
 
     # Mint a short-expiry JWT (30 min) instead of passing raw GitHub token
     jwt_token = create_access_token(data={
-        "sub":        user_data.get("login"),
-        "name":       user_data.get("name"),
-        "avatar_url": user_data.get("avatar_url"),
-        "email":      github_email,
-        "org_id":     org_id,
-        "role":       role,
-        "plan":       plan,
+        "sub":               user_data.get("login"),
+        "name":              user_data.get("name"),
+        "avatar_url":        user_data.get("avatar_url"),
+        "email":             github_email,
+        "org_id":            org_id,
+        "role":              role,
+        "plan":              plan,
+        "is_platform_admin": is_platform_admin,
     })
 
     return RedirectResponse(
@@ -632,20 +643,21 @@ async def auth_callback(code: str, request: Request):
 async def auth_me(request: Request, user: dict = Depends(get_current_user)):
     """Return user info from the JWT payload — no GitHub API call needed."""
     return {
-        "login":      user.get("sub"),
-        "name":       user.get("name"),
-        "avatar_url": user.get("avatar_url"),
-        "email":      user.get("email"),
-        "role":       user.get("role"),
-        "org_id":     user.get("org_id"),
-        "plan":       user.get("plan"),
+        "login":             user.get("sub"),
+        "name":              user.get("name"),
+        "avatar_url":        user.get("avatar_url"),
+        "email":             user.get("email"),
+        "role":              user.get("role"),
+        "org_id":            user.get("org_id"),
+        "plan":              user.get("plan"),
+        "is_platform_admin": user.get("is_platform_admin", False),
     }
 
 @app.get("/auth/logout")
 def auth_logout():
     return RedirectResponse(url=f"{FRONTEND_URL}?auth=logout")
 
-# ── APPROVAL WORKFLOW ENDPOINTS ──────────────────────────
+# ── APPROVAL WORKFLOW ENDPOINTS ─────────────────────────────────────────
 from tools.approval import (
     request_approval, approve, reject,
     get_pending, get_all, is_approved
@@ -689,7 +701,7 @@ def approval_test(request: Request, user: dict = Depends(get_current_user)):
     return {"approval_id": approval_id, "message": "Approval request created — check Slack + dashboard"}
 
 
-# ── MULTI-AGENT BRAIN ────────────────────────────────────
+# ── MULTI-AGENT BRAIN ───────────────────────────────────────────────────
 from agent.multi_brain import multi_brain_analyze
 
 class BrainRequest(BaseModel):
@@ -763,7 +775,7 @@ def agent_brain(request: Request, body: BrainRequest = None, user: dict = Depend
         "total_tokens": result["total_tokens"],
         "scan_summary": scan_summary.strip()
     }
-# ── SAAS ROUTERS ─────────────────────────────────────────
+# ── SAAS ROUTERS ────────────────────────────────────────────────────────
 from api.routes.auth import router as auth_router
 from api.routes.org import router as org_router
 from api.routes.billing import router as billing_router
@@ -775,7 +787,7 @@ app.include_router(org_router)
 app.include_router(billing_router)
 app.include_router(slack_router)
 app.include_router(github_webhook_router)
-# ── FINDINGS CACHE ────────────────────────────────────────
+# ── FINDINGS CACHE ──────────────────────────────────────────────────────
 _findings_cache = []
 
 def _refresh_findings():
@@ -829,7 +841,7 @@ _findings_thread.start()
 def get_findings(request: Request, user: dict = Depends(get_current_user)):
     """Return cached live findings from Gitleaks + Trivy."""
     return _findings_cache
-# ── PROFILE UPDATE ───────────────────────────────────────
+# ── PROFILE UPDATE ──────────────────────────────────────────────────────
 from datetime import datetime as _dt
 
 class ProfileUpdateRequest(BaseModel):
@@ -856,7 +868,7 @@ def update_profile(request: Request, body: ProfileUpdateRequest, user: dict = De
         db.close()
 
 
-# ── FINDINGS RESOLVE ─────────────────────────────────────
+# ── FINDINGS RESOLVE ────────────────────────────────────────────────────
 from db.models import Finding as FindingModel
 
 @app.patch("/findings/{finding_id}/resolve")
@@ -901,7 +913,7 @@ def get_resolved_findings(request: Request, user: dict = Depends(get_current_use
         db.close()
 
 
-# ── PER-REPO SCAN ────────────────────────────────────────
+# ── PER-REPO SCAN ───────────────────────────────────────────────────────
 class RepoScanRequest(BaseModel):
     repo_name: str
 
@@ -934,7 +946,7 @@ def scan_single_repo(request: Request, body: RepoScanRequest, user: dict = Depen
         critical=result.get("total", 0),
     )
     return result
-# ── INTEGRATIONS STATUS ENDPOINT ─────────────────────────
+# ── INTEGRATIONS STATUS ENDPOINT ────────────────────────────────────────
 @app.get("/org/integrations/status")
 @limiter.limit("20/minute")
 def integrations_status(request: Request, user: dict = Depends(get_current_user)):
@@ -997,7 +1009,7 @@ def integrations_status(request: Request, user: dict = Depends(get_current_user)
             "status": "connected" if is_set("NGROK_AUTH_TOKEN") else "disconnected",
         },
     ]
-# ── GITHUB CONNECT (link GitHub to existing account) ─────
+# ── GITHUB CONNECT (link GitHub to existing account) ──
 @app.get("/auth/github-connect")
 async def github_connect(request: Request, token: str = None):
     """Redirect logged-in user to GitHub OAuth — token passed as query param."""
@@ -1013,7 +1025,7 @@ async def github_connect(request: Request, token: str = None):
     github_auth_url = (
         f"https://github.com/login/oauth/authorize"
         f"?client_id={GITHUB_CLIENT_ID}"
-        f"&redirect_uri={OAUTH_REDIRECT_URI.replace("/auth/callback", "/auth/github-connect/callback")}"
+        f"&redirect_uri={OAUTH_REDIRECT_URI.replace('/auth/callback', '/auth/github-connect/callback')}"
         f"&scope=repo,read:user"
         f"&state={urllib.parse.quote(state)}"
     )
@@ -1033,7 +1045,7 @@ async def github_connect_callback(code: str, state: str, request: Request):
                 "client_id":     GITHUB_CLIENT_ID,
                 "client_secret": GITHUB_CLIENT_SECRET,
                 "code":          code,
-                "redirect_uri":  OAUTH_REDIRECT_URI.replace("/auth/callback", "/auth/github-connect/callback"),
+                "redirect_uri":  OAUTH_REDIRECT_URI.replace('/auth/callback', '/auth/github-connect/callback'),
             },
             headers={"Accept": "application/json"},
         )
@@ -1104,7 +1116,7 @@ async def github_connect_callback(code: str, state: str, request: Request):
     finally:
         db.close()
 
-# ── SESSION LOGGER ENDPOINTS ─────────────────────────────
+# ── SESSION LOGGER ENDPOINTS ────────────────────────────────────────────
 from tools.session_logger import start_session, end_session, get_sessions
 
 class SessionStartRequest(BaseModel):
@@ -1138,44 +1150,6 @@ def session_end(request: Request, body: SessionEndRequest, user: dict = Depends(
 
 @app.get("/sessions")
 @limiter.limit("30/minute")
-def sessions_list(request: Request, user: dict = Depends(get_current_user), limit: int = 50):
-    """Return recent session history."""
-    return get_sessions(limit=limit)
-
-# ── SESSION LOGGER ENDPOINTS ─────────────────────────────
-from tools.session_logger import start_session, end_session, get_sessions
-
-class SessionStartRequest(BaseModel):
-    repo: str = None
-    scan_type: str = "manual"
-
-class SessionEndRequest(BaseModel):
-    session_id: str
-    status: str = "completed"
-    findings: int = 0
-
-@app.post("/sessions/start")
-@limiter.limit("30/minute")
-def session_start(request: Request, body: SessionStartRequest, user: dict = Depends(get_current_user)):
-    """Start a new scan session."""
-    return start_session(
-        user=user.get("sub", "unknown"),
-        repo=body.repo,
-        scan_type=body.scan_type,
-    )
-
-@app.post("/sessions/end")
-@limiter.limit("30/minute")
-def session_end(request: Request, body: SessionEndRequest, user: dict = Depends(get_current_user)):
-    """Close an active session with result."""
-    return end_session(
-        session_id=body.session_id,
-        status=body.status,
-        findings=body.findings,
-    )
-
-@app.get("/sessions")
-@limiter.limit("30/minute")
-def sessions_list(request: Request, user: dict = Depends(get_current_user), limit: int = 50):
-    """Return recent session history."""
+def sessions_list(request: Request, user: dict = Depends(require_platform_admin), limit: int = 50):
+    """Return recent session history. Platform admin only."""
     return get_sessions(limit=limit)

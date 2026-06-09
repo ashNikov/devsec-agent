@@ -15,9 +15,9 @@ SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
 
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 # ORGANIZATIONS & MULTI-TENANCY
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 
 class Organization(Base):
     __tablename__ = "organizations"
@@ -48,14 +48,15 @@ class Organization(Base):
 class User(Base):
     __tablename__ = "users"
 
-    id              = Column(Integer, primary_key=True, index=True)
-    email           = Column(String, unique=True, nullable=False, index=True)
-    hashed_password = Column(String, nullable=True)   # nullable — GitHub OAuth users have no password
-    github_id       = Column(String, nullable=True, unique=True)
-    email_verified  = Column(Boolean, default=False)
-    is_active       = Column(Boolean, default=True)
-    last_login_at   = Column(DateTime, nullable=True)
-    created_at      = Column(DateTime, default=datetime.utcnow)
+    id                = Column(Integer, primary_key=True, index=True)
+    email             = Column(String, unique=True, nullable=False, index=True)
+    hashed_password   = Column(String, nullable=True)   # nullable — GitHub OAuth users have no password
+    github_id         = Column(String, nullable=True, unique=True)
+    email_verified    = Column(Boolean, default=False)
+    is_active         = Column(Boolean, default=True)
+    is_platform_admin = Column(Boolean, default=False, nullable=False)   # ashTech staff only — gates /admin panel
+    last_login_at     = Column(DateTime, nullable=True)
+    created_at        = Column(DateTime, default=datetime.utcnow)
 
     memberships = relationship("OrganizationMember", back_populates="user")
     sessions    = relationship("UserSession", back_populates="user")
@@ -134,9 +135,9 @@ class UserRepo(Base):
     organization = relationship("Organization", back_populates="repos")
 
 
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 # STRIPE & BILLING
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 
 class StripeEvent(Base):
     __tablename__ = "stripe_events"
@@ -146,9 +147,9 @@ class StripeEvent(Base):
     processed_at    = Column(DateTime, default=datetime.utcnow)
 
 
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 # AUDIT & OBSERVABILITY
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
@@ -164,9 +165,9 @@ class AuditLog(Base):
     organization = relationship("Organization", back_populates="audit_logs")
 
 
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 # SECURITY FINDINGS
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 
 class Finding(Base):
     __tablename__ = "findings"
@@ -185,9 +186,9 @@ class Finding(Base):
     created_at  = Column(DateTime, default=datetime.utcnow)
 
 
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 # SCHEDULING & NOTIFICATIONS
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 
 class ScanSchedule(Base):
     __tablename__ = "scan_schedules"
@@ -234,9 +235,9 @@ class Integration(Base):
     organization = relationship("Organization", back_populates="integrations")
 
 
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 # EXISTING TABLES — upgraded with org/user FKs
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
 
 class ScanResult(Base):
     __tablename__ = "scan_results"
