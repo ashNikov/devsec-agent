@@ -703,6 +703,7 @@ def agent_brain(request: Request, body: BrainRequest = None, user: dict = Depend
     from tools.trivy import scan_filesystem
 
     # Build scan summary from live data or use provided summary
+    secrets_total = vulns_total = critical_total = 0
     if body and body.scan_summary:
         scan_summary = body.scan_summary
     else:
@@ -751,9 +752,9 @@ def agent_brain(request: Request, body: BrainRequest = None, user: dict = Depend
     from db.repository import save_scan_result
     save_scan_result(
         repo="multi-repo-scan",
-        secrets=0,
-        vulns=0,
-        critical=0,
+        secrets=secrets_total,
+        vulns=vulns_total,
+        critical=critical_total,
         brain_winner=result["winner"],
         brain_score=result["winner_score"],
         tokens=result["total_tokens"],
