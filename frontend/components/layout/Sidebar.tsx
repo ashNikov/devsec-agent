@@ -5,14 +5,15 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { authApi, getTokenClaims } from '@/lib/api'
 
+
 const NAV = [
-  { href: '/dashboard',    label: 'Dashboard',    icon: 'Γ¼í' },
-  { href: '/repos',        label: 'Repositories', icon: 'Γîç' },
-  { href: '/findings',     label: 'Findings',     icon: 'ΓÜæ' },
-  { href: '/scan-history', label: 'Scan History', icon: 'Γù╖' },
-  { href: '/team',         label: 'Team',         icon: 'Γèò' },
-  { href: '/billing',      label: 'Billing',      icon: 'Γùê' },
-  { href: '/settings',     label: 'Settings',     icon: 'ΓÜÖ' },
+  { href: '/dashboard',    label: 'Dashboard',    icon: '⬡' },
+  { href: '/repos',        label: 'Repositories', icon: '⌇' },
+  { href: '/findings',     label: 'Findings',     icon: '⚑' },
+  { href: '/scan-history', label: 'Scan History', icon: '◷' },
+  { href: '/team',         label: 'Team',         icon: '⊕' },
+  { href: '/billing',      label: 'Billing',      icon: '◈' },
+  { href: '/settings',     label: 'Settings',     icon: '⚙' },
 ]
 
 interface SidebarProps {
@@ -25,7 +26,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const router   = useRouter()
   const [user,      setUser]      = useState<any>(null)
   const [collapsed, setCollapsed] = useState(false)
-  const [sched,     setSched]     = useState({ pct: 0, label: 'ΓÇö' })
+  const [sched,     setSched]     = useState({ pct: 0, label: '—' })
 
   useEffect(() => {
     // Populate immediately from JWT claims so UI isn't blank while API loads
@@ -83,7 +84,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--fh)', lineHeight: 1 }}>
                 Agent<span style={{ color: 'var(--accent)' }}>Sec</span>
               </div>
-              <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2, letterSpacing: '0.3px' }}>BETA ┬╖ Phase 5</div>
+              <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2, letterSpacing: '0.3px' }}>BETA · Phase 5</div>
             </div>
           </div>
         )}
@@ -120,7 +121,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
               <div style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 10, padding: collapsed ? '9px 0' : '8px 10px', justifyContent: collapsed ? 'center' : 'flex-start', borderRadius: 8, background: pathname === '/admin' ? 'rgba(59,130,246,0.1)' : 'transparent', border: `1px solid ${pathname === '/admin' ? 'rgba(59,130,246,0.25)' : 'transparent'}`, cursor: 'pointer', transition: 'all 0.15s' }}
                 onMouseEnter={e => { if (pathname !== '/admin') e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
                 onMouseLeave={e => { if (pathname !== '/admin') e.currentTarget.style.background = 'transparent' }}>
-                <span style={{ fontSize: 15, color: pathname === '/admin' ? '#3B82F6' : 'var(--text-muted)', width: 18, textAlign: 'center', flexShrink: 0 }}>ΓÄê</span>
+                <span style={{ fontSize: 15, color: pathname === '/admin' ? '#3B82F6' : 'var(--text-muted)', width: 18, textAlign: 'center', flexShrink: 0 }}>⎈</span>
                 {!collapsed && <span style={{ fontSize: 13, color: pathname === '/admin' ? '#3B82F6' : 'var(--text-sec)', fontWeight: pathname === '/admin' ? 600 : 400 }}>Admin</span>}
               </div>
             </Link>
@@ -150,7 +151,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
           {!collapsed && (
             <div>
               <div style={{ fontSize: 11, color: 'var(--text)', fontWeight: 600, lineHeight: 1.2, maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user?.email || 'ΓÇª'}
+                {user?.email || '…'}
               </div>
               <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{user?.role || 'member'}</div>
             </div>
@@ -159,7 +160,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         {!collapsed && (
           <button onClick={handleLogout} title="Logout"
             style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, padding: 4 }}>
-            ΓçÆ
+            ⇒
           </button>
         )}
       </div>
