@@ -2,13 +2,15 @@ from db.models import SessionLocal, ScanResult, RemediationAction, RepoPattern
 from datetime import datetime
 
 def save_scan_result(repo: str, secrets: int, vulns: int, critical: int,
+                     org_id: int = None, user_id: int = None,
                      brain_winner: str = None, brain_score: float = None,
                      tokens: int = 0, analysis: str = None) -> ScanResult:
     """Save a scan result to the database."""
     db = SessionLocal()
     try:
         result = ScanResult(
-            repo=repo, secrets_found=secrets, vulns_found=vulns,
+            repo=repo, org_id=org_id, user_id=user_id,
+            secrets_found=secrets, vulns_found=vulns,
             critical_count=critical, brain_winner=brain_winner,
             brain_score=brain_score, tokens_used=tokens, analysis=analysis
         )
@@ -38,11 +40,13 @@ def save_remediation(repo: str, action: str, approved_by: str = None,
     finally:
         db.close()
 
-def get_scan_history(repo: str = None, limit: int = 20) -> list:
+def get_scan_history(repo: str = None, limit: int = 20, org_id: int = None) -> list:
     """Get recent scan history, optionally filtered by repo."""
     db = SessionLocal()
     try:
         q = db.query(ScanResult).order_by(ScanResult.scanned_at.desc())
+        if org_id:
+            q = q.filter(ScanResult.org_id == org_id)
         if repo:
             q = q.filter(ScanResult.repo == repo)
         results = q.limit(limit).all()

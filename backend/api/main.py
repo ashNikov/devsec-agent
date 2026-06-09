@@ -266,7 +266,7 @@ init_db()
 @limiter.limit("20/minute")
 def scan_history(request: Request, user: dict = Depends(get_current_user), limit: int = 20):
     """Return recent scan history."""
-    return get_scan_history(limit=limit)
+    return get_scan_history(limit=limit, org_id=user["org_id"])
 
 @app.get("/history/trends/{repo}")
 @limiter.limit("20/minute")
@@ -713,20 +713,10 @@ def agent_brain(request: Request, body: BrainRequest = None, user: dict = Depend
             db = SessionLocal()
             from db.models import UserRepo
             # Get org's repos
-            org_repos = db.query(UserRepo).filter(
-                UserRepo.org_id == user["org_id"],
-                UserRepo.is_active == True
-            ).all()
-            org_repo_names = [r.repo_name for r in org_repos]
-            # Get scan results for those repos
-            if org_repo_names:
-                recent_scans = db.query(ScanResult).filter(
-                    ScanResult.repo.in_(org_repo_names)
-                ).order_by(ScanResult.scanned_at.desc()).limit(10).all()
-            else:
-                recent_scans = db.query(ScanResult).order_by(
-                    ScanResult.scanned_at.desc()
-                ).limit(10).all()
+            # Scope scans directly by org_id (no cross-org leak via shared repo names)
+            recent_scans = db.query(ScanResult).filter(
+                ScanResult.org_id == user["org_id"]
+            ).order_by(ScanResult.scanned_at.desc()).limit(10).all()
             db.close()
             if recent_scans:
                 secrets_total = sum(s.secrets_found or 0 for s in recent_scans)
@@ -752,6 +742,7 @@ def agent_brain(request: Request, body: BrainRequest = None, user: dict = Depend
     from db.repository import save_scan_result
     save_scan_result(
         repo="multi-repo-scan",
+        org_id=user["org_id"],
         secrets=secrets_total,
         vulns=vulns_total,
         critical=critical_total,
@@ -937,6 +928,7 @@ def scan_single_repo(request: Request, body: RepoScanRequest, user: dict = Depen
     from db.repository import save_scan_result
     save_scan_result(
         repo=body.repo_name,
+        org_id=user["org_id"],
         secrets=result.get("total", 0),
         vulns=0,
         critical=result.get("total", 0),
