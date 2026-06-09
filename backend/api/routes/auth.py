@@ -15,7 +15,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 
-# ── HELPERS ──────────────────────────────────────────────
+# -- HELPERS -----------------------------------------------------------------
 
 def _slug_from_name(name: str) -> str:
     """Convert org name to a URL-safe slug."""
@@ -35,7 +35,7 @@ def get_current_user(request: Request) -> dict:
     return payload
 
 
-# ── SCHEMAS ───────────────────────────────────────────────
+# -- SCHEMAS -----------------------------------------------------------------
 
 class RegisterRequest(BaseModel):
     email: str
@@ -47,7 +47,7 @@ class LoginRequest(BaseModel):
     password: str
 
 
-# ── ENDPOINTS ─────────────────────────────────────────────
+# -- ENDPOINTS ---------------------------------------------------------------
 
 @router.post("/register")
 def register(body: RegisterRequest):
@@ -139,6 +139,9 @@ def login(body: LoginRequest):
         if not user.is_active:
             raise HTTPException(status_code=403, detail="Account disabled")
 
+        # Capture platform-admin flag BEFORE commit (avoid expired-attribute reload)
+        is_platform_admin = bool(user.is_platform_admin)
+
         # Get org + role
         membership = db.query(OrganizationMember).filter(
             OrganizationMember.user_id == user.id
@@ -156,6 +159,7 @@ def login(body: LoginRequest):
             "org_id": org.id if org else None,
             "role":   membership.role if membership else "member",
             "plan":   org.plan if org else "free",
+            "is_platform_admin": is_platform_admin,
         })
 
         return {
@@ -188,7 +192,7 @@ class AcceptInviteRequest(BaseModel):
 
 @router.post("/accept-invite")
 def accept_invite(body: AcceptInviteRequest):
-    """Accept an invitation token — join existing org with assigned role."""
+    """Accept an invitation token -- join existing org with assigned role."""
     from db.models import Invitation
     db = SessionLocal()
     try:
@@ -265,7 +269,9 @@ def accept_invite(body: AcceptInviteRequest):
         }
     finally:
         db.close()
-# ── FORGOT PASSWORD ───────────────────────────────────────────────────────────
+
+
+# -- FORGOT PASSWORD ---------------------------------------------------------
 import resend as _resend
 from datetime import timedelta
 
@@ -282,7 +288,7 @@ def forgot_password(body: ForgotPasswordRequest):
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.email == body.email).first()
-        # Always return 200 — don't reveal if email exists
+        # Always return 200 -- don't reveal if email exists
         if not user:
             return {"status": "ok", "message": "If that email exists, a reset link has been sent."}
 
