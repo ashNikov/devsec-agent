@@ -5,16 +5,14 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { authApi, getTokenClaims } from '@/lib/api'
 
-const ADMIN_EMAILS = ['s.uwemudo@gmail.com', 'uwemudo007@gmail.com', 'victoriaakpa8@gmail.com', 'ashniovtech@gmail.com']
-
 const NAV = [
-  { href: '/dashboard',    label: 'Dashboard',    icon: '⬡' },
-  { href: '/repos',        label: 'Repositories', icon: '⌇' },
-  { href: '/findings',     label: 'Findings',     icon: '⚑' },
-  { href: '/scan-history', label: 'Scan History', icon: '◷' },
-  { href: '/team',         label: 'Team',         icon: '⊕' },
-  { href: '/billing',      label: 'Billing',      icon: '◈' },
-  { href: '/settings',     label: 'Settings',     icon: '⚙' },
+  { href: '/dashboard',    label: 'Dashboard',    icon: 'Γ¼í' },
+  { href: '/repos',        label: 'Repositories', icon: 'Γîç' },
+  { href: '/findings',     label: 'Findings',     icon: 'ΓÜæ' },
+  { href: '/scan-history', label: 'Scan History', icon: 'Γù╖' },
+  { href: '/team',         label: 'Team',         icon: 'Γèò' },
+  { href: '/billing',      label: 'Billing',      icon: 'Γùê' },
+  { href: '/settings',     label: 'Settings',     icon: 'ΓÜÖ' },
 ]
 
 interface SidebarProps {
@@ -27,7 +25,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const router   = useRouter()
   const [user,      setUser]      = useState<any>(null)
   const [collapsed, setCollapsed] = useState(false)
-  const [sched,     setSched]     = useState({ pct: 0, label: '—' })
+  const [sched,     setSched]     = useState({ pct: 0, label: 'ΓÇö' })
 
   useEffect(() => {
     // Populate immediately from JWT claims so UI isn't blank while API loads
@@ -37,6 +35,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         email: claims.sub || claims.email || '',
         role:  claims.role  || 'member',
         plan:  claims.plan  || 'free',
+        is_platform_admin: claims.is_platform_admin === true,
       })
     }
     authApi.me().then(setUser).catch(() => {})
@@ -64,7 +63,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
     ? emailOrLogin.slice(0, 2).toUpperCase()
     : '??'
 
-  const isAdmin = user?.role === 'owner' || ADMIN_EMAILS.includes(user?.email)
+  const isAdmin = user?.is_platform_admin === true
 
   const w = collapsed ? 56 : 220
 
@@ -84,7 +83,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--fh)', lineHeight: 1 }}>
                 Agent<span style={{ color: 'var(--accent)' }}>Sec</span>
               </div>
-              <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2, letterSpacing: '0.3px' }}>BETA · Phase 5</div>
+              <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2, letterSpacing: '0.3px' }}>BETA ┬╖ Phase 5</div>
             </div>
           </div>
         )}
@@ -121,7 +120,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
               <div style={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 10, padding: collapsed ? '9px 0' : '8px 10px', justifyContent: collapsed ? 'center' : 'flex-start', borderRadius: 8, background: pathname === '/admin' ? 'rgba(59,130,246,0.1)' : 'transparent', border: `1px solid ${pathname === '/admin' ? 'rgba(59,130,246,0.25)' : 'transparent'}`, cursor: 'pointer', transition: 'all 0.15s' }}
                 onMouseEnter={e => { if (pathname !== '/admin') e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
                 onMouseLeave={e => { if (pathname !== '/admin') e.currentTarget.style.background = 'transparent' }}>
-                <span style={{ fontSize: 15, color: pathname === '/admin' ? '#3B82F6' : 'var(--text-muted)', width: 18, textAlign: 'center', flexShrink: 0 }}>⎈</span>
+                <span style={{ fontSize: 15, color: pathname === '/admin' ? '#3B82F6' : 'var(--text-muted)', width: 18, textAlign: 'center', flexShrink: 0 }}>ΓÄê</span>
                 {!collapsed && <span style={{ fontSize: 13, color: pathname === '/admin' ? '#3B82F6' : 'var(--text-sec)', fontWeight: pathname === '/admin' ? 600 : 400 }}>Admin</span>}
               </div>
             </Link>
@@ -151,7 +150,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
           {!collapsed && (
             <div>
               <div style={{ fontSize: 11, color: 'var(--text)', fontWeight: 600, lineHeight: 1.2, maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user?.email || '…'}
+                {user?.email || 'ΓÇª'}
               </div>
               <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{user?.role || 'member'}</div>
             </div>
@@ -160,7 +159,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         {!collapsed && (
           <button onClick={handleLogout} title="Logout"
             style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, padding: 4 }}>
-            ⇒
+            ΓçÆ
           </button>
         )}
       </div>

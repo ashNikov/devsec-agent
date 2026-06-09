@@ -5,7 +5,7 @@ function getToken(): string | null {
   return localStorage.getItem('agentsec_token')
 }
 
-export function getTokenClaims(): { sub?: string; email?: string; role?: string; plan?: string; org_id?: number } | null {
+export function getTokenClaims(): { sub?: string; email?: string; role?: string; plan?: string; org_id?: number; is_platform_admin?: boolean } | null {
   const token = getToken()
   if (!token) return null
   try {

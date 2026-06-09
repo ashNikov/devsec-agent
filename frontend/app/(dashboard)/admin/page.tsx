@@ -5,18 +5,16 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { authApi, dashApi } from '@/lib/api'
 
-const ADMIN_EMAILS = ['s.uwemudo@gmail.com', 'uwemudo007@gmail.com', 'victoriaakpa8@gmail.com', 'ashniovtech@gmail.com']
-
 const PHASES = [
   { num: 1, name: 'Core Scanner + GitHub OAuth',          status: 'complete', date: 'Apr 2026' },
   { num: 2, name: 'JWT Auth + Rate Limiting + Dashboard', status: 'complete', date: 'May 21 2026' },
   { num: 3, name: 'SaaS Foundation + Full UI',            status: 'complete', date: 'May 31 2026' },
   { num: 4, name: 'Multi-agent Brain + Intelligence',     status: 'complete', date: 'Jun 01 2026' },
-  { num: 5, name: 'Production + YC W2027 Launch',         status: 'active',   date: '—' },
+  { num: 5, name: 'Production + YC W2027 Launch',         status: 'active',   date: 'ΓÇö' },
 ]
 
 function timeAgo(dateStr: string) {
-  if (!dateStr) return '—'
+  if (!dateStr) return 'ΓÇö'
   const diff = Math.round((Date.now() - new Date(dateStr).getTime()) / 1000)
   if (diff < 60)    return `${diff}s ago`
   if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`
@@ -25,7 +23,7 @@ function timeAgo(dateStr: string) {
 }
 
 function fmtDuration(s: number | null) {
-  if (s === null || s === undefined) return '—'
+  if (s === null || s === undefined) return 'ΓÇö'
   if (s < 60) return `${s}s`
   return `${Math.floor(s / 60)}m ${s % 60}s`
 }
@@ -83,7 +81,7 @@ export default function AdminPage() {
   useEffect(() => {
     authApi.me().then(u => {
       setUser(u)
-      if (!ADMIN_EMAILS.includes(u.email) && u.role !== 'owner') router.replace('/dashboard')
+      if (!u.is_platform_admin) router.replace('/dashboard')
     }).catch(() => router.replace('/login'))
     fetchData().finally(() => setLoading(false))
     fetchCommits()
@@ -94,11 +92,11 @@ export default function AdminPage() {
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)', fontSize: 13 }}>
-      Loading admin panel…
+      Loading admin panelΓÇª
     </div>
   )
 
-  if (!ADMIN_EMAILS.includes(user?.email) && user?.role !== 'owner') return null
+  if (!user?.is_platform_admin) return null
 
   const progress       = project?.current_phase_progress ?? 5
   const DONE_ITEMS    = project?.done     || []
@@ -123,7 +121,7 @@ export default function AdminPage() {
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.1), rgba(59,130,246,0.03))', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 12, padding: '20px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <div style={{ fontSize: 11, color: '#3B82F6', fontWeight: 600, letterSpacing: '0.5px', marginBottom: 4 }}>ADMIN · OWNER ONLY</div>
+          <div style={{ fontSize: 11, color: '#3B82F6', fontWeight: 600, letterSpacing: '0.5px', marginBottom: 4 }}>ADMIN ┬╖ OWNER ONLY</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--fh)' }}>
             {project?.project || 'AgentSec'} <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>v{project?.version}</span>
           </div>
@@ -133,10 +131,10 @@ export default function AdminPage() {
           <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Last commit</div>
           <div style={{ fontSize: 13, color: 'var(--accent)', fontFamily: 'var(--fm)', marginTop: 2 }}>{project?.last_commit}</div>
           <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>
-            Auto-refreshes every 30s · Last: {lastRefresh.toLocaleTimeString()}
+            Auto-refreshes every 30s ┬╖ Last: {lastRefresh.toLocaleTimeString()}
           </div>
           <button onClick={fetchData} style={{ marginTop: 6, padding: '3px 10px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 5, color: '#3B82F6', fontSize: 11, cursor: 'pointer' }}>
-            ↻ Refresh
+            Γå╗ Refresh
           </button>
         </div>
       </div>
@@ -146,7 +144,7 @@ export default function AdminPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-              Phase {project?.current_phase} — {project?.current_phase_name}
+              Phase {project?.current_phase} ΓÇö {project?.current_phase_name}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Next: {project?.next_phase}</div>
           </div>
@@ -162,7 +160,7 @@ export default function AdminPage() {
             <div key={p.num} style={{ flex: 1, padding: '10px 12px', background: 'var(--elevated)', border: `1px solid ${p.status === 'complete' ? 'rgba(0,229,160,0.3)' : p.status === 'active' ? 'rgba(59,130,246,0.3)' : 'var(--border)'}`, borderRadius: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <div style={{ width: 16, height: 16, borderRadius: '50%', background: p.status === 'complete' ? 'var(--accent)' : p.status === 'active' ? '#3B82F6' : 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: 'var(--bg)', fontWeight: 700, flexShrink: 0 }}>
-                  {p.status === 'complete' ? '✔' : p.num}
+                  {p.status === 'complete' ? 'Γ£ö' : p.num}
                 </div>
                 <span style={{ fontSize: 10, fontWeight: 600, color: p.status === 'complete' ? 'var(--accent)' : p.status === 'active' ? '#3B82F6' : 'var(--text-muted)' }}>P{p.num}</span>
               </div>
@@ -176,7 +174,7 @@ export default function AdminPage() {
       {/* Done vs Pending */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', marginBottom: 14 }}>✔ Done ({DONE_ITEMS.length})</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', marginBottom: 14 }}>Γ£ö Done ({DONE_ITEMS.length})</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {DONE_ITEMS.map((item: string, i: number) => (
               <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
@@ -187,7 +185,7 @@ export default function AdminPage() {
           </div>
         </div>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#FFB340', marginBottom: 14 }}>⏳ Pending ({PENDING_ITEMS.length})</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#FFB340', marginBottom: 14 }}>ΓÅ│ Pending ({PENDING_ITEMS.length})</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {PENDING_ITEMS.map((item: string, i: number) => (
               <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
@@ -201,7 +199,7 @@ export default function AdminPage() {
 
       {/* Backlog */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px' }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#8B95A8', marginBottom: 14 }}>📋 Backlog ({BACKLOG_ITEMS.length})</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#8B95A8', marginBottom: 14 }}>≡ƒôï Backlog ({BACKLOG_ITEMS.length})</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {BACKLOG_ITEMS.map((item: string, i: number) => (
             <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
@@ -218,14 +216,14 @@ export default function AdminPage() {
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Recent Commits</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-              All branches · {branches.length} branch{branches.length !== 1 ? 'es' : ''}: {branches.map(b => b.name).join(', ')}
+              All branches ┬╖ {branches.length} branch{branches.length !== 1 ? 'es' : ''}: {branches.map(b => b.name).join(', ')}
             </div>
           </div>
           <a href="https://github.com/ashNikov/devsec-agent/commits" target="_blank" rel="noreferrer"
-            style={{ fontSize: 11, color: '#3B82F6', textDecoration: 'none' }}>View on GitHub ↗</a>
+            style={{ fontSize: 11, color: '#3B82F6', textDecoration: 'none' }}>View on GitHub Γåù</a>
         </div>
         {commits.length === 0 ? (
-          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading commits…</div>
+          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading commitsΓÇª</div>
         ) : commits.map((c, i) => (
           <div key={c.sha} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 24px', borderBottom: i < commits.length - 1 ? '1px solid var(--border)' : 'none' }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
@@ -238,7 +236,7 @@ export default function AdminPage() {
                 {c.commit.message.split('\n')[0]}
               </div>
               <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                {c.commit.author.name} · {timeAgo(c.commit.author.date)}
+                {c.commit.author.name} ┬╖ {timeAgo(c.commit.author.date)}
               </div>
             </div>
             <div style={{ padding: '2px 8px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 4, fontSize: 10, color: '#3B82F6', fontFamily: 'var(--fm)', flexShrink: 0 }}>
@@ -258,11 +256,11 @@ export default function AdminPage() {
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Session History</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-              {sessions.length === 0 ? 'No sessions yet — start a scan to log one' : `${sessions.length} session${sessions.length !== 1 ? 's' : ''} recorded`}
+              {sessions.length === 0 ? 'No sessions yet ΓÇö start a scan to log one' : `${sessions.length} session${sessions.length !== 1 ? 's' : ''} recorded`}
             </div>
           </div>
           <button onClick={fetchSessions} style={{ padding: '3px 10px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 5, color: '#3B82F6', fontSize: 11, cursor: 'pointer' }}>
-            ↻ Refresh
+            Γå╗ Refresh
           </button>
         </div>
         {sessions.length === 0 ? (
@@ -298,7 +296,7 @@ export default function AdminPage() {
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)', fontSize: 11 }}>{timeAgo(s.started_at)}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-sec)', fontFamily: 'var(--fm)', fontSize: 11 }}>{fmtDuration(s.duration_s)}</td>
                     <td style={{ padding: '10px 16px', color: s.findings > 0 ? '#FF4757' : 'var(--text-muted)', fontWeight: s.findings > 0 ? 600 : 400 }}>
-                      {s.findings ?? '—'}
+                      {s.findings ?? 'ΓÇö'}
                     </td>
                     <td style={{ padding: '10px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -330,7 +328,7 @@ export default function AdminPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px', flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 14 }}>
-              Live Tool Health <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>· {activeTools}/5 active</span>
+              Live Tool Health <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>┬╖ {activeTools}/5 active</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {Object.entries(toolsWithSonar).map(([tool, status]: any) => {
@@ -360,14 +358,14 @@ export default function AdminPage() {
               ].map(row => (
                 <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{row.label}</span>
-                  <span style={{ fontSize: 11, color: row.color, fontWeight: 600 }}>{String(row.value ?? '—')}</span>
+                  <span style={{ fontSize: 11, color: row.color, fontWeight: 600 }}>{String(row.value ?? 'ΓÇö')}</span>
                 </div>
               ))}
             </div>
             {sonar.dashboard_url && (
               <a href={sonar.dashboard_url} target="_blank" rel="noreferrer"
                 style={{ display: 'block', marginTop: 12, fontSize: 11, color: '#3B82F6', textDecoration: 'none' }}>
-                ↗ SonarCloud Dashboard ↗
+                Γåù SonarCloud Dashboard Γåù
               </a>
             )}
           </div>
