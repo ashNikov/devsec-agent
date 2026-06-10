@@ -943,7 +943,7 @@ def scan_single_repo(request: Request, body: RepoScanRequest, user: dict = Depen
         org_id=user["org_id"],
         secrets=result.get("total", 0),
         vulns=0,
-        critical=result.get("total", 0),
+        critical=0,
     )
     return result
 # ── INTEGRATIONS STATUS ENDPOINT ────────────────────────────────────────
