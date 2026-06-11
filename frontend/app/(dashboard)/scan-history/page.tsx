@@ -18,7 +18,7 @@ export default function ScanHistoryPage() {
   const [error,   setError]   = useState('')
 
   useEffect(() => {
-    request<any[]>(`${API}/history/scans?limit=50`)
+    request<any[]>('/history/scans?limit=50')
       .then(data => setScans(Array.isArray(data) ? data : []))
       .catch(() => setError('Failed to load scan history'))
       .finally(() => setLoading(false))
