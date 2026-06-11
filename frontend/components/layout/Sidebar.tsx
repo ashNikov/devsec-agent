@@ -9,6 +9,7 @@ import { authApi, getTokenClaims } from '@/lib/api'
 const NAV = [
   { href: '/dashboard',    label: 'Dashboard',    icon: '⬡' },
   { href: '/repos',        label: 'Repositories', icon: '⌇' },
+  { href: '/provision',    label: 'Provisioning', icon: '⚒' },
   { href: '/findings',     label: 'Findings',     icon: '⚑' },
   { href: '/scan-history', label: 'Scan History', icon: '◷' },
   { href: '/team',         label: 'Team',         icon: '⊕' },

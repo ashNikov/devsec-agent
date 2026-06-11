@@ -107,3 +107,17 @@ export const orgApi = {
   deleteWorkspace: () =>
     request<any>('/org/workspace', { method: 'DELETE' }),
 }
+
+export const provisionApi = {
+  scan:       () => request<any>('/provision/scan'),
+  requestFix: (repo: string, action: string, branch = 'main', language = 'Python') =>
+    request<any>('/provision/request', {
+      method: 'POST',
+      body: JSON.stringify({ repo, action, branch, language }),
+    }),
+  applyFix:   (approval_id: string, repo: string, action: string, branch = 'main', language = 'Python') =>
+    request<any>('/provision/fix', {
+      method: 'POST',
+      body: JSON.stringify({ approval_id, repo, action, branch, language }),
+    }),
+}
