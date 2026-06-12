@@ -342,11 +342,14 @@ def remediate_report(request: Request, user: dict = Depends(get_current_user)):
 
 # ── PROVISIONER ENDPOINTS ───────────────────────────────────────────────
 from tools.provisioner import scan_all_repos
+def _get_org_github(user: dict):
+    """Resolve (github_token, github_user) for the calling org.
 
-@app.get("/provision/scan")
-@limiter.limit("5/minute")
-def provision_scan(request: Request, user: dict = Depends(get_current_user)):
-    """Scan the calling org's repos and return compliance findings."""
+    Token comes from the org's GitHub Integration (scoped by org_id). Username
+    is resolved from the token via GitHub's /user endpoint — NEVER from a stored
+    display name — so we can only ever act on the token owner's account.
+    Returns (None, None) if the org has no active GitHub integration.
+    """
     from db.models import SessionLocal, Integration
     db = SessionLocal()
     try:
@@ -356,13 +359,11 @@ def provision_scan(request: Request, user: dict = Depends(get_current_user)):
             Integration.is_active == True
         ).first()
         if not integration or not integration.access_token_encrypted:
-            return {"total_repos": 0, "compliant": 0, "needs_attention": 0, "findings": []}
+            return None, None
         github_token = decrypt_token(integration.access_token_encrypted)
     finally:
         db.close()
 
-    # Resolve the GitHub username from the TOKEN, never from a stored display
-    # name. The token's owner is the only account we may scan.
     import requests as _rq
     gh_resp = _rq.get(
         "https://api.github.com/user",
@@ -371,8 +372,16 @@ def provision_scan(request: Request, user: dict = Depends(get_current_user)):
     )
     github_user = gh_resp.json().get("login") if gh_resp.status_code == 200 else None
     if not github_user:
-        return {"total_repos": 0, "compliant": 0, "needs_attention": 0, "findings": []}
+        return None, None
+    return github_token, github_user
 
+@app.get("/provision/scan")
+@limiter.limit("5/minute")
+def provision_scan(request: Request, user: dict = Depends(get_current_user)):
+    """Scan the calling org's repos and return compliance findings."""
+    github_token, github_user = _get_org_github(user)
+    if not github_token or not github_user:
+        return {"total_repos": 0, "compliant": 0, "needs_attention": 0, "findings": []}
     results = scan_all_repos(github_token, github_user)
     compliant = sum(1 for r in results if r["status"] == "COMPLIANT")
     return {
