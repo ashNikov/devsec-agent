@@ -346,8 +346,24 @@ from tools.provisioner import scan_all_repos
 @app.get("/provision/scan")
 @limiter.limit("5/minute")
 def provision_scan(request: Request, user: dict = Depends(get_current_user)):
-    """Scan all repos and return compliance findings."""
-    results = scan_all_repos()
+    """Scan the calling org's repos and return compliance findings."""
+    from db.models import SessionLocal, Integration, Organization
+    db = SessionLocal()
+    try:
+        integration = db.query(Integration).filter(
+            Integration.org_id == user["org_id"],
+            Integration.provider == "github",
+            Integration.is_active == True
+        ).first()
+        if not integration or not integration.access_token_encrypted:
+            return {"total_repos": 0, "compliant": 0, "needs_attention": 0, "findings": []}
+        github_token = decrypt_token(integration.access_token_encrypted)
+        org = db.query(Organization).filter(Organization.id == user["org_id"]).first()
+        github_user = org.name if org else None
+    finally:
+        db.close()
+
+    results = scan_all_repos(github_token, github_user)
     compliant = sum(1 for r in results if r["status"] == "COMPLIANT")
     return {
         "total_repos": len(results),
