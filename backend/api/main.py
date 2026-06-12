@@ -213,6 +213,13 @@ def require_platform_admin(user: dict = Depends(get_current_user)) -> dict:
         raise HTTPException(status_code=403, detail="Forbidden: platform admin only")
     return user
 
+def require_owner(user: dict = Depends(get_current_user)) -> dict:
+    """Dependency — only the org OWNER may execute repo-modifying actions.
+    Owner-only is the tightest gate; repo writes are the highest-risk action."""
+    if user.get("role") != "owner":
+        raise HTTPException(status_code=403, detail="Forbidden: org owner only")
+    return user
+
 # ── EXISTING ENDPOINTS ──────────────────────────────────────────────────
 @app.get("/")
 def root():
@@ -375,6 +382,21 @@ def _get_org_github(user: dict):
         return None, None
     return github_token, github_user
 
+def _org_owns_repo(user: dict, repo_name: str) -> bool:
+    """True only if the calling org owns repo_name (active) in UserRepo.
+    Authoritative ownership check — blocks acting on another org's repo,
+    even if the repo name is supplied by the client in the request body."""
+    from db.models import SessionLocal, UserRepo
+    db = SessionLocal()
+    try:
+        match = db.query(UserRepo).filter(
+            UserRepo.org_id == user["org_id"],
+            UserRepo.repo_name == repo_name,
+            UserRepo.is_active == True
+        ).first()
+        return match is not None
+    finally:
+        db.close()
 @app.get("/provision/scan")
 @limiter.limit("5/minute")
 def provision_scan(request: Request, user: dict = Depends(get_current_user)):
@@ -419,6 +441,9 @@ ACTION_DESCRIPTIONS = {
 @limiter.limit("10/minute")
 def provision_request(request: Request, body: ProvisionRequest, user: dict = Depends(get_current_user)):
     """Request approval before executing a provisioning fix."""
+    # BARRIER 1: the calling org must own the target repo.
+    if not _org_owns_repo(user, body.repo):
+        raise HTTPException(status_code=403, detail="Forbidden: your org does not own this repo")
     desc = ACTION_DESCRIPTIONS.get(body.action, body.action)
     approval_id = request_approval(
         action=f"provision:{body.action}:{body.repo}",
@@ -427,18 +452,30 @@ def provision_request(request: Request, body: ProvisionRequest, user: dict = Dep
     )
     return {"approval_id": approval_id, "status": "pending_approval", "repo": body.repo, "action": body.action}
 
+
 @app.post("/provision/fix")
 @limiter.limit("10/minute")
-def provision_fix(request: Request, body: ProvisionApproveRequest, user: dict = Depends(get_current_user)):
-    """Execute provisioning fix — only after approval."""
+def provision_fix(request: Request, body: ProvisionApproveRequest, user: dict = Depends(require_owner)):
+    """Execute provisioning fix — owner-only, approved, ownership-checked,
+    and run with the org's OWN GitHub token. Triple-locked write path."""
+    # LOCK 1: require_owner dependency above already rejected non-owners (403).
+    # LOCK 2: the approval must exist and be granted.
     if not is_approved(body.approval_id):
         return {"status": "error", "error": "Not approved or approval expired"}
+    # LOCK 3a: the calling org must own the target repo.
+    if not _org_owns_repo(user, body.repo):
+        raise HTTPException(status_code=403, detail="Forbidden: your org does not own this repo")
+    # LOCK 3b: act with the org's OWN token — physically cannot reach another org's repos.
+    github_token, github_user = _get_org_github(user)
+    if not github_token or not github_user:
+        return {"status": "error", "error": "No GitHub integration for this org"}
+
     if body.action == "add_cicd":
-        result = add_cicd_pipeline(body.repo)
+        result = add_cicd_pipeline(body.repo, github_token, github_user)
     elif body.action == "add_gitignore":
-        result = add_gitignore(body.repo, body.language)
+        result = add_gitignore(body.repo, body.language, github_token, github_user)
     elif body.action == "enforce_branch_protection":
-        result = enforce_branch_protection(body.repo, body.branch)
+        result = enforce_branch_protection(body.repo, body.branch, github_token, github_user)
     else:
         return {"status": "error", "error": f"Unknown action: {body.action}"}
     return result
