@@ -347,7 +347,7 @@ from tools.provisioner import scan_all_repos
 @limiter.limit("5/minute")
 def provision_scan(request: Request, user: dict = Depends(get_current_user)):
     """Scan the calling org's repos and return compliance findings."""
-    from db.models import SessionLocal, Integration, Organization
+    from db.models import SessionLocal, Integration
     db = SessionLocal()
     try:
         integration = db.query(Integration).filter(
@@ -358,10 +358,20 @@ def provision_scan(request: Request, user: dict = Depends(get_current_user)):
         if not integration or not integration.access_token_encrypted:
             return {"total_repos": 0, "compliant": 0, "needs_attention": 0, "findings": []}
         github_token = decrypt_token(integration.access_token_encrypted)
-        org = db.query(Organization).filter(Organization.id == user["org_id"]).first()
-        github_user = org.name if org else None
     finally:
         db.close()
+
+    # Resolve the GitHub username from the TOKEN, never from a stored display
+    # name. The token's owner is the only account we may scan.
+    import requests as _rq
+    gh_resp = _rq.get(
+        "https://api.github.com/user",
+        headers={"Authorization": f"Bearer {github_token}", "Accept": "application/vnd.github.v3+json"},
+        timeout=10
+    )
+    github_user = gh_resp.json().get("login") if gh_resp.status_code == 200 else None
+    if not github_user:
+        return {"total_repos": 0, "compliant": 0, "needs_attention": 0, "findings": []}
 
     results = scan_all_repos(github_token, github_user)
     compliant = sum(1 for r in results if r["status"] == "COMPLIANT")
@@ -371,6 +381,7 @@ def provision_scan(request: Request, user: dict = Depends(get_current_user)):
         "needs_attention": len(results) - compliant,
         "findings": results
     }
+
 
 # ── PROVISIONER FIX ENDPOINTS ───────────────────────────────────────────
 from tools.provisioner import scan_all_repos, add_cicd_pipeline, add_gitignore, enforce_branch_protection
