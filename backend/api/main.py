@@ -469,13 +469,15 @@ def provision_fix(request: Request, body: ProvisionApproveRequest, user: dict = 
     github_token, github_user = _get_org_github(user)
     if not github_token or not github_user:
         return {"status": "error", "error": "No GitHub integration for this org"}
+    # body.repo is full_name (owner/repo); fix functions need the bare repo name
+    bare_repo = body.repo.split("/", 1)[-1]
 
     if body.action == "add_cicd":
-        result = add_cicd_pipeline(body.repo, github_token, github_user)
+        result = add_cicd_pipeline(bare_repo, github_token, github_user)
     elif body.action == "add_gitignore":
-        result = add_gitignore(body.repo, body.language, github_token, github_user)
+        result = add_gitignore(bare_repo, body.language, github_token, github_user)
     elif body.action == "enforce_branch_protection":
-        result = enforce_branch_protection(body.repo, body.branch, github_token, github_user)
+        result = enforce_branch_protection(bare_repo, body.branch, github_token, github_user)
     else:
         return {"status": "error", "error": f"Unknown action: {body.action}"}
     return result

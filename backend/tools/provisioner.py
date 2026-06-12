@@ -71,6 +71,7 @@ def scan_all_repos(github_token: str = None, github_user: str = None) -> list:
     findings = []
     for repo in repos:
         name           = repo["name"]
+        full_name      = repo.get("full_name") or name
         default_branch = repo.get("default_branch", "main")
         missing        = []
 
@@ -84,7 +85,7 @@ def scan_all_repos(github_token: str = None, github_user: str = None) -> list:
             missing.append("Dockerfile")
 
         findings.append({
-            "repo":           name,
+            "repo":           full_name,
             "default_branch": default_branch,
             "private":        repo["private"],
             "missing":        missing,
