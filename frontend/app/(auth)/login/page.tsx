@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { authApi } from '@/lib/api'
@@ -14,6 +14,16 @@ export default function LoginPage() {
   const [showPwd, setShowPwd] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
+  const anim = (i: number): React.CSSProperties => ({
+    opacity: mounted ? 1 : 0,
+    transform: mounted ? 'translateX(0)' : 'translateX(40px)',
+    filter: mounted ? 'blur(0)' : 'blur(8px)',
+    transition: 'opacity .7s ease, transform .7s ease, filter .7s ease',
+    transitionDelay: `${i * 0.12}s`,
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,7 +51,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <div style={{ textAlign: 'center', marginBottom: 36 }}>
+      <div style={{ textAlign: 'center', marginBottom: 36, ...anim(0) }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
           <div style={{ width: 34, height: 34, background: 'var(--accent)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg)' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -53,7 +63,7 @@ export default function LoginPage() {
         <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Autonomous DevSecOps Security</p>
       </div>
 
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 32 }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 32, ...anim(1) }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--fh)', marginBottom: 4 }}>Welcome back</h2>
         <p style={{ color: 'var(--text-sec)', fontSize: 13, marginBottom: 26 }}>Sign in to your AgentSec workspace</p>
 
@@ -116,7 +126,7 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 11, marginTop: 20 }}>
+      <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 11, marginTop: 20, ...anim(2) }}>
         Protected by JWT auth · rate limited · GCP Cloud Run
       </p>
     </>
