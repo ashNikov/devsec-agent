@@ -78,8 +78,7 @@ def run_repo_sync():
                                 repo_name=name,
                                 repo_url=repo_data.get("html_url", ""),
                                 is_active=True,
-                                is_private=repo_data.get("private", False),
-                            ))
+                                    ))
                             added += 1
 
                     # Deactivate repos no longer on GitHub
