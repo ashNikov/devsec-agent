@@ -725,6 +725,23 @@ async def auth_callback(code: str, request: Request):
         # Capture platform-admin flag while session is open (staff-only access to /admin)
         is_platform_admin = bool(getattr(user_obj, "is_platform_admin", False))
 
+        # Persist GitHub token as an Integration so provisioning/scan can use it
+        if org_id:
+            from db.models import Integration as _Intg
+            _intg = db.query(_Intg).filter(
+                _Intg.org_id == org_id, _Intg.provider == "github"
+            ).first()
+            if _intg:
+                _intg.access_token_encrypted = encrypt_token(github_token)
+                _intg.is_active = True
+            else:
+                db.add(_Intg(
+                    org_id=org_id,
+                    provider="github",
+                    access_token_encrypted=encrypt_token(github_token),
+                    is_active=True,
+                ))
+            db.commit()
         # Auto-populate repos
         await _auto_provision_repos(github_token, org_id, plan)
         await _register_github_webhook(github_token, github_login)
