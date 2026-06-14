@@ -205,7 +205,61 @@ sequenceDiagram
 - **Audit logs** — all critical actions logged with timestamp and user
 
 ---
+## Security Architecture
 
+AgentSec is a multi-tenant security platform, so tenant isolation is treated as a
+first-class engineering concern — not an afterthought. Every control below is
+implemented and verified against live cross-tenant attack tests.
+
+### Multi-Tenant Isolation
+
+Each organization's data and GitHub access are strictly scoped to that org. There
+is no shared global token and no env-var fallback — a request can only ever act on
+the calling org's own resources.
+
+- **Identity is unforgeable.** Every request carries a signature-verified JWT; the
+  `org_id` used for all scoping comes from that verified token, never from a
+  client-supplied value.
+- **Per-org GitHub tokens.** Each org's GitHub token is stored encrypted
+  (AES-256 / Fernet) and resolved per-request, scoped by `org_id`. The token owner's
+  identity is resolved *from the token itself* (GitHub `/user`), never from a stored
+  display name — so the system cannot be tricked into acting on an account it doesn't
+  own.
+
+### Defense-in-Depth Write Path
+
+Repository-modifying actions (adding CI/CD pipelines, `.gitignore`, branch
+protection) pass through a triple-locked write path:
+
+1. **Owner-only gate** — only an org owner may execute a write; members are rejected.
+2. **Approval gate** — every action requires an explicit, tracked approval.
+3. **Ownership check** — the target repo must belong to the calling org, verified
+   against the database before any write.
+4. **Org-scoped token** — the write executes with the org's *own* GitHub token,
+   which is physically incapable of reaching another org's repositories.
+
+A cross-tenant write requires *all* of these to fail simultaneously — and each is
+keyed on the unforgeable `org_id`.
+
+### Verified, Not Assumed
+
+Tenant isolation is confirmed with live attack tests, not just code review:
+
+- A legitimate owner acting on their own repo → **succeeds (200)**
+- A request crafted to act on another org's repo → **blocked (403)** at the
+  ownership check, with the org-scoped token as a second backstop
+
+### Additional Controls
+
+- **Encrypted at rest** — all GitHub tokens AES-256 encrypted before storage
+- **No code retention** — repositories are scanned for secret patterns; source code
+  is never stored
+- **Audit logging** — security-relevant actions logged with actor, action, and timestamp
+- **JWT auth** — short-lived tokens carrying `org_id` / `role` / `is_platform_admin` claims
+- **HTTPS everywhere** — all traffic encrypted in transit
+- **Hardened data layer** — Cloud SQL reachable only via the private connector
+  socket (no public IP exposure)
+  
 ## Quick Start
 
 ### Prerequisites
