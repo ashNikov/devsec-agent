@@ -67,7 +67,7 @@ from tools.gitleaks import scan_repo_for_secrets as gitleaks_scan
 from tools.gcp import get_gcp_identity
 from agent.core import think, analyze_and_alert
 from tools.sonarcloud import get_sonarcloud_status
-from agent.scheduler import start_scheduler, stop_scheduler, get_scheduler_status, trigger_manual_scan
+from agent.scheduler import start_scheduler, stop_scheduler, get_scheduler_status, trigger_manual_scan, run_repo_sync
 from tools.remediation import (
     fix_risky_iam_bindings,
     analyze_dockerfile,
@@ -311,6 +311,16 @@ def scheduler_status(request: Request, user: dict = Depends(get_current_user)):
 def scheduler_trigger(request: Request, user: dict = Depends(get_current_user)):
     """Manually trigger an immediate scan."""
     return trigger_manual_scan(org_id=user.get("org_id"))
+
+@app.post("/internal/sync-repos")
+@limiter.limit("30/minute")
+def internal_sync_repos(request: Request):
+    """Cloud Scheduler entrypoint: wakes container from scale-to-zero, runs repo sync. Gated by shared secret, not JWT."""
+    secret = os.getenv("SYNC_SECRET")
+    if not secret or request.headers.get("X-Sync-Secret") != secret:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    run_repo_sync()
+    return {"status": "ok", "synced": True}
 
 # ── REMEDIATION ENDPOINTS ───────────────────────────────────────────────
 @app.post("/remediate/iam")

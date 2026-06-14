@@ -123,14 +123,6 @@ def start_scheduler():
         replace_existing=True,
         max_instances=1,  # Never run two scans simultaneously
     )
-    _scheduler.add_job(
-        run_repo_sync,
-        trigger=IntervalTrigger(minutes=2),
-        id="repo_sync",
-        name="AgentSec Repo Sync",
-        replace_existing=True,
-        max_instances=1,
-    )
     _scheduler.start()
     logger.info(f"[SCHEDULER] Started — scanning every {SCAN_INTERVAL_HOURS} hours")
 
