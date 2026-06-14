@@ -83,13 +83,15 @@ def run_repo_sync():
                             added += 1
 
                     # Deactivate repos no longer on GitHub
+                    deactivated = 0
                     for name, repo in db_repo_names.items():
                         if name not in github_repos and repo.is_active:
                             repo.is_active = False
+                            deactivated += 1
 
-                    if added > 0:
+                    if added > 0 or deactivated > 0:
                         db.commit()
-                        logger.info(f"[REPO SYNC] Org {org_id} — {added} repos added/reactivated")
+                        logger.info(f"[REPO SYNC] Org {org_id} — {added} added/reactivated, {deactivated} deactivated")
 
                 except Exception as e:
                     logger.error(f"[REPO SYNC] Error syncing org {org_id}: {e}")
