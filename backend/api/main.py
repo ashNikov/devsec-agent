@@ -483,6 +483,40 @@ def provision_fix(request: Request, body: ProvisionApproveRequest, user: dict = 
     return result
 
 
+@app.get("/internal/diag/integrations")
+@limiter.limit("10/minute")
+def diag_integrations(request: Request, user: dict = Depends(require_platform_admin)):
+    """TEMP DIAGNOSTIC — platform-admin only. Dump org→integration status. REMOVE after use."""
+    from db.models import SessionLocal, Integration, Organization, OrganizationMember, User
+    db = SessionLocal()
+    try:
+        out = []
+        for org in db.query(Organization).all():
+            intg = db.query(Integration).filter(
+                Integration.org_id == org.id,
+                Integration.provider == "github",
+            ).first()
+            member = db.query(OrganizationMember).filter(
+                OrganizationMember.org_id == org.id
+            ).first()
+            email = None
+            if member:
+                u = db.query(User).filter(User.id == member.user_id).first()
+                email = u.email if u else None
+            out.append({
+                "org_id": org.id,
+                "org_name": org.name,
+                "plan": org.plan,
+                "owner_email": email,
+                "has_github_integration": intg is not None,
+                "integration_active": bool(intg.is_active) if intg else False,
+                "has_token": bool(intg.access_token_encrypted) if intg else False,
+                "created_at": str(intg.created_at) if intg else None,
+            })
+        return {"orgs": out}
+    finally:
+        db.close()
+
 async def _auto_provision_repos(github_token: str, org_id: int, plan: str):
     """Fetch repos from GitHub and auto-save to UserRepo table."""
     import httpx as _httpx
