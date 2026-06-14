@@ -120,4 +120,6 @@ export const provisionApi = {
       method: 'POST',
       body: JSON.stringify({ approval_id, repo, action, branch, language }),
     }),
+  approve:    (approval_id: string) =>
+    request<any>(`/approvals/${approval_id}/approve`, { method: 'POST' }),
 }

@@ -2,7 +2,13 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
-import { provisionApi } from '@/lib/api'
+import { provisionApi, getTokenClaims } from '@/lib/api'
+
+const ACTION_MAP: Record<string, string> = {
+  'CI/CD pipeline':     'add_cicd',
+  '.gitignore':         'add_gitignore',
+  'branch protection':  'enforce_branch_protection',
+}
 
 function StatusBadge({ status }: { status: string }) {
   const compliant = status === 'COMPLIANT'
@@ -19,13 +25,40 @@ export default function ProvisionPage() {
   const [findings, setFindings] = useState<any[]>([])
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState('')
+  const [busy,   setBusy]   = useState<Record<string, boolean>>({})
+  const [errs,   setErrs]   = useState<Record<string, string>>({})
 
-  useEffect(() => {
+  const claims = typeof window !== 'undefined' ? getTokenClaims() : null
+  const isOwner = claims?.role === 'owner'
+
+  const loadScan = () =>
     provisionApi.scan()
       .then(data => setFindings(Array.isArray(data?.findings) ? data.findings : []))
       .catch(() => setError('Failed to load provisioning scan'))
       .finally(() => setLoading(false))
-  }, [])
+
+  useEffect(() => { loadScan() }, [])
+
+  async function handleFix(repo: string, missingLabel: string) {
+    const action = ACTION_MAP[missingLabel]
+    if (!action) return
+    const key = `${repo}::${missingLabel}`
+    setErrs(e => ({ ...e, [key]: '' }))
+    setBusy(b => ({ ...b, [key]: true }))
+    try {
+      const req = await provisionApi.requestFix(repo, action)
+      const approvalId = req?.approval_id
+      if (!approvalId) throw new Error('No approval id')
+      await provisionApi.approve(approvalId)
+      const res = await provisionApi.applyFix(approvalId, repo, action)
+      if (res?.status === 'error') throw new Error(res?.error || 'Fix failed')
+      await loadScan()
+    } catch (e: any) {
+      setErrs(er => ({ ...er, [key]: e?.message || 'Failed' }))
+    } finally {
+      setBusy(b => ({ ...b, [key]: false }))
+    }
+  }
 
   const totalRepos     = findings.length
   const compliant      = findings.filter(f => f.status === 'COMPLIANT').length
@@ -77,12 +110,27 @@ export default function ProvisionPage() {
                 {f.private && <span style={{ fontSize: 10, color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: 3, padding: '1px 5px' }}>private</span>}
               </div>
               {f.missing && f.missing.length > 0 && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                  {f.missing.map((m: string) => (
-                    <span key={m} style={{ fontSize: 11, color: 'var(--text-sec)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ color: '#FF4757' }}>✕</span> No {m}
-                    </span>
-                  ))}
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {f.missing.map((m: string) => {
+                    const fixable = !!ACTION_MAP[m]
+                    const key = `${f.repo}::${m}`
+                    const isBusy = !!busy[key]
+                    const errMsg = errs[key]
+                    return (
+                      <span key={m} style={{ fontSize: 11, color: 'var(--text-sec)', display: 'inline-flex', alignItems: 'center', gap: 6, border: '1px solid var(--border)', borderRadius: 5, padding: '3px 8px' }}>
+                        <span style={{ color: '#FF4757' }}>✕</span> No {m}
+                        {fixable && isOwner && (
+                          <button
+                            onClick={() => handleFix(f.repo, m)}
+                            disabled={isBusy}
+                            style={{ marginLeft: 4, fontSize: 10, fontWeight: 600, color: isBusy ? 'var(--text-muted)' : '#00E5A0', background: 'transparent', border: `1px solid ${isBusy ? 'var(--border)' : '#00E5A030'}`, borderRadius: 4, padding: '1px 7px', cursor: isBusy ? 'default' : 'pointer' }}>
+                            {isBusy ? 'Fixing…' : 'Fix'}
+                          </button>
+                        )}
+                        {errMsg && <span style={{ color: '#FF4757', fontSize: 10 }}>{errMsg}</span>}
+                      </span>
+                    )
+                  })}
                 </div>
               )}
             </div>
