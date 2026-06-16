@@ -39,18 +39,18 @@ export default function ProvisionPage() {
 
   useEffect(() => { loadScan() }, [])
 
-  async function handleFix(repo: string, missingLabel: string) {
+  async function handleFix(repo: string, missingLabel: string, defaultBranch: string = 'main') {
     const action = ACTION_MAP[missingLabel]
     if (!action) return
     const key = `${repo}::${missingLabel}`
     setErrs(e => ({ ...e, [key]: '' }))
     setBusy(b => ({ ...b, [key]: true }))
     try {
-      const req = await provisionApi.requestFix(repo, action)
+      const req = await provisionApi.requestFix(repo, action, defaultBranch)
       const approvalId = req?.approval_id
       if (!approvalId) throw new Error('No approval id')
       await provisionApi.approve(approvalId)
-      const res = await provisionApi.applyFix(approvalId, repo, action)
+      const res = await provisionApi.applyFix(approvalId, repo, action, defaultBranch)
       if (res?.status === 'error') throw new Error(res?.error || 'Fix failed')
       await loadScan()
     } catch (e: any) {
@@ -121,7 +121,7 @@ export default function ProvisionPage() {
                         <span style={{ color: '#FF4757' }}>✕</span> No {m}
                         {fixable && isOwner && (
                           <button
-                            onClick={() => handleFix(f.repo, m)}
+                            onClick={() => handleFix(f.repo, m, f.default_branch)}
                             disabled={isBusy}
                             style={{ marginLeft: 4, fontSize: 10, fontWeight: 600, color: isBusy ? 'var(--text-muted)' : '#00E5A0', background: 'transparent', border: `1px solid ${isBusy ? 'var(--border)' : '#00E5A030'}`, borderRadius: 4, padding: '1px 7px', cursor: isBusy ? 'default' : 'pointer' }}>
                             {isBusy ? 'Fixing…' : 'Fix'}
