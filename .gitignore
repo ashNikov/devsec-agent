@@ -26,3 +26,8 @@ frontend/.next/
 backend/.env
 frontend/.next/
 backend/keys/
+*.db
+*.bak
+sessions.json
+.env
+backend/.env
