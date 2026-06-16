@@ -589,7 +589,7 @@ def auth_login():
         f"https://github.com/login/oauth/authorize"
         f"?client_id={GITHUB_CLIENT_ID}"
         f"&redirect_uri={OAUTH_REDIRECT_URI}"
-        f"&scope=repo,user,user:email,read:org"
+        f"&scope=repo,workflow,user,user:email,read:org"
     )
     return RedirectResponse(url=github_auth_url)
 
@@ -1128,7 +1128,7 @@ async def github_connect(request: Request, token: str = None):
         f"https://github.com/login/oauth/authorize"
         f"?client_id={GITHUB_CLIENT_ID}"
         f"&redirect_uri={OAUTH_REDIRECT_URI.replace('/auth/callback', '/auth/github-connect/callback')}"
-        f"&scope=repo,read:user"
+        f"&scope=repo,workflow,read:user"
         f"&state={urllib.parse.quote(state)}"
     )
     return RedirectResponse(url=github_auth_url)
