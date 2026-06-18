@@ -338,14 +338,6 @@ def remediate_dockerfile(request: Request, user: dict = Depends(get_current_user
     result = analyze_dockerfile(dockerfile_path)
     return result
 
-@app.post("/remediate/rotate-secret")
-@limiter.limit("5/minute")
-def remediate_rotate_secret(request: Request, user: dict = Depends(get_current_user)):
-    """Rotate JWT_SECRET_KEY in GCP Secret Manager."""
-    import secrets
-    new_value = secrets.token_hex(32)
-    result = rotate_gcp_secret("JWT_SECRET_KEY", new_value)
-    return result
 
 @app.get("/remediate/report")
 @limiter.limit("10/minute")
@@ -354,7 +346,6 @@ def remediate_report(request: Request, user: dict = Depends(get_current_user)):
     return generate_remediation_report([
         {"action": "IAM scan", "status": "available", "endpoint": "/remediate/iam"},
         {"action": "Dockerfile hardening", "status": "available", "endpoint": "/remediate/dockerfile"},
-        {"action": "Secret rotation", "status": "available", "endpoint": "/remediate/rotate-secret"},
     ])
 
 # ── PROVISIONER ENDPOINTS ───────────────────────────────────────────────
