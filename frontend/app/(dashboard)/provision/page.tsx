@@ -7,6 +7,7 @@ import { provisionApi, getTokenClaims } from '@/lib/api'
 const ACTION_MAP: Record<string, string> = {
   'CI/CD pipeline':     'add_cicd',
   '.gitignore':         'add_gitignore',
+  'Dockerfile':         'add_dockerfile',
   'branch protection':  'enforce_branch_protection',
 }
 

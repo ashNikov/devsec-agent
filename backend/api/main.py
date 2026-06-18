@@ -425,7 +425,7 @@ def provision_scan(request: Request, user: dict = Depends(get_current_user)):
 
 
 # ── PROVISIONER FIX ENDPOINTS ───────────────────────────────────────────
-from tools.provisioner import scan_all_repos, add_cicd_pipeline, add_gitignore, enforce_branch_protection
+from tools.provisioner import scan_all_repos, add_cicd_pipeline, add_gitignore, enforce_branch_protection, add_dockerfile
 from tools.approval import request_approval, approve, reject, get_pending, is_approved
 
 class ProvisionRequest(BaseModel):
@@ -488,6 +488,8 @@ def provision_fix(request: Request, body: ProvisionApproveRequest, user: dict = 
         result = add_gitignore(bare_repo, body.language, github_token, github_user)
     elif body.action == "enforce_branch_protection":
         result = enforce_branch_protection(bare_repo, body.branch, github_token, github_user)
+    elif body.action == "add_dockerfile":
+        result = add_dockerfile(bare_repo, body.language, github_token, github_user)
     else:
         return {"status": "error", "error": f"Unknown action: {body.action}"}
     return result

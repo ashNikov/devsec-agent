@@ -177,6 +177,30 @@ def add_gitignore(repo: str, language: str = "Python", github_token: str = None,
     return {"status": "error", "repo": repo, "error": r.json().get("message", "unknown")}
 
 
+def add_dockerfile(repo: str, language: str = "Python", github_token: str = None, github_user: str = None) -> dict:
+    """Push a starter Dockerfile to a repo missing one."""
+    token, user = _get_token_and_user(github_token, github_user)
+    templates = {
+        "Python":     "FROM python:3.12-slim\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY . .\nRUN useradd -m appuser\nUSER appuser\nEXPOSE 8000\nCMD [\"python\", \"main.py\"]\n",
+        "JavaScript": "FROM node:20-slim\nWORKDIR /app\nCOPY package*.json ./\nRUN npm ci --omit=dev\nCOPY . .\nRUN useradd -m appuser\nUSER appuser\nEXPOSE 3000\nCMD [\"node\", \"index.js\"]\n",
+        "default":    "FROM alpine:3.20\nWORKDIR /app\nCOPY . .\nRUN adduser -D appuser\nUSER appuser\nCMD [\"sh\"]\n",
+    }
+    content     = templates.get(language, templates["default"])
+    content_b64 = base64.b64encode(content.encode()).decode()
+    r = requests.put(
+        f"https://api.github.com/repos/{user}/{repo}/contents/Dockerfile",
+        headers=_headers(token),
+        json={
+            "message": "chore: add Dockerfile [auto-provisioned by AgentSec]",
+            "content": content_b64
+        },
+        timeout=15
+    )
+    if r.status_code in (200, 201):
+        return {"status": "success", "repo": repo, "action": "added Dockerfile"}
+    return {"status": "error", "repo": repo, "error": r.json().get("message", "unknown")}
+
+
 def enforce_branch_protection(repo: str, branch: str = "main", github_token: str = None, github_user: str = None) -> dict:
     """Enable branch protection on the default branch."""
     token, user = _get_token_and_user(github_token, github_user)
