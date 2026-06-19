@@ -250,7 +250,12 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>🧠 Multi-Agent Brain Analysis</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Claude Haiku + Sonnet + Python Judge</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{(() => {
+              const label = (m?: string) => !m ? '' : /gemini/i.test(m) ? 'Gemini Flash' : /sonnet/i.test(m) ? 'Claude Sonnet' : /haiku/i.test(m) ? 'Claude Haiku' : m;
+              const a = label(brainResult?.brain_a?.model);
+              const b = label(brainResult?.brain_b?.model);
+              return a && b ? `${a} + ${b} + Python Judge` : 'Gemini Flash + Claude Sonnet + Python Judge';
+            })()}</div>
           </div>
           <button onClick={runBrainAnalysis} disabled={brainLoading} style={{ padding: '8px 18px', background: brainLoading ? 'var(--elevated)' : 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 8, color: '#3B82F6', fontSize: 13, fontWeight: 600, cursor: brainLoading ? 'wait' : 'pointer' }}>
             {brainLoading ? '🔄 Analyzing...' : '▶ Run Analysis'}
