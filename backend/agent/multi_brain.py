@@ -1,10 +1,19 @@
 import os
 import anthropic
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+# -- GEMINI (Brain A primary) -------------------------------------------------
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+else:
+    print("[BRAIN A] WARNING: GEMINI_API_KEY not set - Brain A will fall back to Haiku")
+GEMINI_MODEL = "gemini-2.5-flash"
 
 # -- BRAIN DEFINITIONS --------------------------------------------------------
 BRAIN_A = "claude-haiku-4-5-20251001"    # Fast, cheap pre-filter
@@ -105,13 +114,42 @@ def judge(brain_a: dict, brain_b: dict) -> dict:
     }
 
 
+def run_gemini_brain(scan_summary: str) -> dict:
+    """Run Gemini Flash as Brain A. Returns the same normalized dict as run_brain()
+    so the judge and degrade logic handle it identically."""
+    if not GEMINI_API_KEY:
+        return {"model": GEMINI_MODEL, "response": "", "tokens": 0,
+                "status": "error", "error": "GEMINI_API_KEY not set"}
+    try:
+        model = genai.GenerativeModel(GEMINI_MODEL, system_instruction=SYSTEM_PROMPT)
+        response = model.generate_content(
+            f"Analyze these scan results:\n\n{scan_summary}",
+            generation_config={"max_output_tokens": 1024},
+        )
+        text = response.text
+        tokens = 0
+        if getattr(response, "usage_metadata", None):
+            tokens = (getattr(response.usage_metadata, "prompt_token_count", 0)
+                      + getattr(response.usage_metadata, "candidates_token_count", 0))
+        return {"model": GEMINI_MODEL, "response": text, "tokens": tokens, "status": "success"}
+    except Exception as e:
+        print(f"[BRAIN A] Gemini failed: {type(e).__name__}: {e}")
+        return {"model": GEMINI_MODEL, "response": "", "tokens": 0,
+                "status": "error", "error": str(e)}
+
+
 def multi_brain_analyze(scan_summary: str) -> dict:
     """
     Run both brains sequentially, judge the results.
     Brain A runs first - if it finds nothing, Brain B is skipped (cost optimization).
     """
-    print(f"[BRAIN A] Running {BRAIN_A}...")
-    result_a = run_brain(BRAIN_A, scan_summary)
+    print(f"[BRAIN A] Running {GEMINI_MODEL} (Gemini)...")
+    result_a = run_gemini_brain(scan_summary)
+    # Gemini is primary; if it fails (rate limit / outage / no key), Haiku subs in
+    # so the scan always completes. Haiku only runs when Gemini cannot.
+    if result_a["status"] == "error":
+        print(f"[BRAIN A] Gemini unavailable - falling back to {BRAIN_A} (Haiku)...")
+        result_a = run_brain(BRAIN_A, scan_summary)
 
     # Cost optimization - only run Brain B if Brain A found something critical
     text_a = result_a["response"].upper()
